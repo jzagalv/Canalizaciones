@@ -30,6 +30,8 @@ from ui.widgets.library_panel import LibraryPanel
 class CanvasTab(QWidget):
     project_changed = pyqtSignal()
     selection_changed = pyqtSignal(dict)  # snapshot
+    segment_double_clicked = pyqtSignal(object)
+    segment_removed = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -39,6 +41,8 @@ class CanvasTab(QWidget):
         self.scene.signals.selection_changed.connect(self.selection_changed)
         self.scene.signals.library_item_used.connect(self._on_library_item_used)
         self.scene.signals.library_item_released.connect(self._on_library_item_released)
+        self.scene.signals.segment_double_clicked.connect(self.segment_double_clicked)
+        self.scene.signals.segment_removed.connect(self.segment_removed)
 
         self._selected_edge_id: Optional[str] = None
         self._material: Dict = {}

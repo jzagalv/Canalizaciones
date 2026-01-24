@@ -1,6 +1,6 @@
 ﻿## 0.6.0 - 2026-01-23
 - Added: Administrador de materiales_bd.lib (ventana flotante).
-- Added: Editor CRUD por categoría (conductors/ducts/trays/epc/bpc) con diálogos específicos.
+- Added: Editor CRUD por categoría (conductors/ducts/epc/bpc) con diálogos específicos.
 - Changed: Menú "Librerías" con acciones para materiales_bd.lib.
 
 ## 0.5.0 - 2026-01-23

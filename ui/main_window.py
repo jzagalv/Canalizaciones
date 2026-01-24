@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -25,8 +26,10 @@ from infra.persistence.materiales_bd_repo import (
     load_materiales_bd,
     save_materiales_bd,
 )
+from infra.persistence.materiales_repo import MaterialesRepo
 from domain.entities.models import LibraryRef, Project
 from domain.libraries.template_models import BaseTemplate
+from domain.materials.material_service import MaterialService
 from domain.services.engine import compute_project_solutions
 from ui.tabs.canvas_tab import CanvasTab
 from ui.tabs.circuits_tab import CircuitsTab
@@ -34,6 +37,7 @@ from ui.tabs.primary_equipment_tab import PrimaryEquipmentTab
 from ui.tabs.equipment_library_tab import EquipmentLibraryTab
 from ui.tabs.results_tab import ResultsTab
 from ui.dialogs.libraries_templates_dialog import LibrariesTemplatesDialog
+from ui.dialogs.conduit_segment_dialog import ConduitSegmentDialog
 from ui.theme_manager import apply_theme
 
 
@@ -49,6 +53,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, app_dir: Path, app_config: AppConfig):
         super().__init__()
+        self._logger = logging.getLogger(__name__)
         self.setWindowTitle("Canalizaciones BT - Rediseño")
         self._app_dir = Path(app_dir)
         self._app_config = app_config
@@ -62,9 +67,13 @@ class MainWindow(QMainWindow):
         self._materiales_path: str = ""
         self._base_template: Optional[BaseTemplate] = None
         self._lib_tpl_dialog: Optional[LibrariesTemplatesDialog] = None
+        self._segment_dialog: Optional[ConduitSegmentDialog] = None
 
         if self._app_config.materiales_bd_path and Path(self._app_config.materiales_bd_path).exists():
             self.project.active_materiales_bd_path = self._app_config.materiales_bd_path
+
+        self._materiales_repo = MaterialesRepo(self.project.active_materiales_bd_path or "")
+        self._material_service = MaterialService(self._materiales_repo)
 
         self._apply_window_state_from_config()
         self._build_menu()
@@ -189,6 +198,24 @@ class MainWindow(QMainWindow):
         self.tab_circuits.project_changed.connect(self._on_project_mutated)
 
         self.tab_canvas.selection_changed.connect(self.tab_circuits.set_active_node)
+        self.tab_canvas.project_changed.connect(self.tab_circuits.reload_node_lists)
+        self.tab_canvas.segment_double_clicked.connect(self.open_segment_dialog)
+        self.tab_canvas.segment_removed.connect(self._on_segment_removed)
+
+    def open_segment_dialog(self, segment_item) -> None:
+        try:
+            if segment_item is None:
+                return
+            if self._segment_dialog is None:
+                self._segment_dialog = ConduitSegmentDialog(self)
+                self._segment_dialog.set_material_service(self._material_service)
+            self._segment_dialog.set_segment(segment_item)
+            self._segment_dialog.show()
+            self._segment_dialog.raise_()
+            self._segment_dialog.activateWindow()
+        except Exception as exc:
+            self._logger.exception("Failed to open segment dialog")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir el dialogo del tramo:\n{exc}")
 
     def _on_theme_toggled(self, theme: str, checked: bool) -> None:
         if not checked:
@@ -314,10 +341,26 @@ class MainWindow(QMainWindow):
         self.tab_equipment_lib.set_project(self.project)
         self.tab_primary.set_project(self.project)
         self.tab_results.set_results(self.project, {}, [])
+        if self._segment_dialog is not None:
+            try:
+                self._segment_dialog.set_segment(None)
+            except Exception:
+                pass
         self._refresh_equipment_library_items()
         self._load_active_materiales()
         self._sync_libraries_templates_dialog()
         self._refresh_status()
+
+    def _on_segment_removed(self, edge_id: str) -> None:
+        if self._segment_dialog is None:
+            return
+        seg = getattr(self._segment_dialog, "_segment", None)
+        seg_id = getattr(seg, "edge_id", None) if seg is not None else None
+        if seg_id and str(seg_id) == str(edge_id):
+            try:
+                self._segment_dialog.set_segment(None)
+            except Exception:
+                pass
 
     def _refresh_title(self) -> None:
         name = self.project.name or "Proyecto"
@@ -399,6 +442,7 @@ class MainWindow(QMainWindow):
             else:
                 self._app_config.materiales_bd_path = self._materiales_path
                 self._app_config.save()
+        self._update_material_service()
 
         self._base_template = None
         if self.project.active_template_path:
@@ -425,7 +469,7 @@ class MainWindow(QMainWindow):
             "kind": "material_library",
             "meta": {"name": "Materiales", "created": "", "source": ""},
             "conductors": [],
-            "containments": {"ducts": [], "trays": [], "epc": [], "bpc": []},
+            "containments": {"ducts": [], "epc": [], "bpc": []},
             "rules": {},
         }
 
@@ -451,6 +495,7 @@ class MainWindow(QMainWindow):
             self._refresh_materiales_label()
             self._sync_libraries_templates_dialog()
             self.materialsDbChanged.emit(path, self._materiales_doc)
+            self._update_material_service()
         except MaterialesBdError as e:
             QMessageBox.critical(self, "materiales_bd.lib", str(e))
 
@@ -470,6 +515,7 @@ class MainWindow(QMainWindow):
         try:
             save_materiales_bd(self._materiales_path, self._materiales_doc)
             self.materialsDbChanged.emit(self._materiales_path, self._materiales_doc)
+            self._update_material_service()
         except MaterialesBdError as e:
             QMessageBox.critical(self, "materiales_bd.lib", str(e))
 
@@ -499,6 +545,7 @@ class MainWindow(QMainWindow):
             self._refresh_materiales_label()
             self._sync_libraries_templates_dialog()
             self.materialsDbChanged.emit(self._materiales_path, self._materiales_doc)
+            self._update_material_service()
         except MaterialesBdError as e:
             QMessageBox.critical(self, "materiales_bd.lib", str(e))
 
@@ -510,6 +557,15 @@ class MainWindow(QMainWindow):
                 return
         self.project.libraries.append(LibraryRef(path=path, enabled=True, priority=10))
         self._eff = None
+
+    def _update_material_service(self) -> None:
+        path = self._materiales_path or self.project.active_materiales_bd_path or ""
+        self._materiales_repo.set_path(path)
+        if self._segment_dialog is not None:
+            try:
+                self._segment_dialog.set_material_service(self._material_service)
+            except Exception:
+                pass
 
     def _load_base_template_dialog(self) -> None:
         path, _ = QFileDialog.getOpenFileName(

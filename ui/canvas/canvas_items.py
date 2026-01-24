@@ -106,6 +106,10 @@ class NodeItem(QGraphicsItem):
         return super().itemChange(change, value)
 
 
+class EdgeItemSignals(QObject):
+    double_clicked = pyqtSignal(object)
+
+
 class EdgeItem(QGraphicsLineItem):
     """Straight edge between two NodeItems."""
 
@@ -126,6 +130,8 @@ class EdgeItem(QGraphicsLineItem):
         self.mode = str(mode)
         self.runs = runs or []
         self.status = "ok"
+        self.props = {}
+        self.signals = EdgeItemSignals()
 
         self.setZValue(-1)
         self.setFlag(self.ItemIsSelectable, True)
@@ -136,6 +142,15 @@ class EdgeItem(QGraphicsLineItem):
 
         self.update_geometry()
         self.set_status("ok")
+
+    def mouseDoubleClickEvent(self, event):
+        self.setSelected(True)
+        self._apply_style()
+        try:
+            self.signals.double_clicked.emit(self)
+        except Exception:
+            pass
+        event.accept()
 
     def update_geometry(self) -> None:
         p1 = self.from_node.scenePos()
@@ -188,10 +203,11 @@ class EdgeItem(QGraphicsLineItem):
 
     def _apply_style(self) -> None:
         pen = QPen(QColor("#6b7280"), 2)
-        if self.status == "warn":
-            pen = QPen(QColor("#f59e0b"), 3)
-        elif self.status == "error":
+        fill_over = bool((self.props or {}).get("fill_over"))
+        if self.status == "error":
             pen = QPen(QColor("#ef4444"), 3)
+        elif self.status == "warn" or fill_over:
+            pen = QPen(QColor("#f59e0b"), 3)
         if self.isSelected():
             pen = QPen(QColor("#3b82f6"), max(4, pen.width() + 1))
         self.setPen(pen)

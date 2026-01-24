@@ -29,6 +29,8 @@ class CanvasSceneSignals(QObject):
     selection_changed = pyqtSignal(dict)
     library_item_used = pyqtSignal(str)
     library_item_released = pyqtSignal(str)
+    segment_double_clicked = pyqtSignal(object)
+    segment_removed = pyqtSignal(str)
 
 
 class CanvasScene(QGraphicsScene):
@@ -167,6 +169,7 @@ class CanvasScene(QGraphicsScene):
                 mode=str(e.get("mode", "auto")),
                 runs=list(e.get("runs", []) or []),
             )
+            edge.signals.double_clicked.connect(self._on_edge_double_clicked)
             self.addItem(edge)
             self._edges_by_id[edge.edge_id] = edge
 
@@ -295,6 +298,7 @@ class CanvasScene(QGraphicsScene):
             return None
         edge_id = self._next_edge_id()
         edge = EdgeItem(edge_id=edge_id, from_node=self._nodes_by_id[from_node_id], to_node=self._nodes_by_id[to_node_id], containment_kind=str(kind), mode="manual", runs=[])
+        edge.signals.double_clicked.connect(self._on_edge_double_clicked)
         self.addItem(edge)
         self._edges_by_id[edge_id] = edge
 
@@ -473,6 +477,7 @@ class CanvasScene(QGraphicsScene):
         if edge:
             self.removeItem(edge)
         self._project_canvas["edges"] = [e for e in (self._project_canvas.get("edges", []) or []) if str(e.get("id")) != str(edge_id)]
+        self.signals.segment_removed.emit(str(edge_id))
 
     def _refresh_edges(self) -> None:
         for edge in self._edges_by_id.values():
@@ -503,6 +508,9 @@ class CanvasScene(QGraphicsScene):
                     "runs": it.runs,
                 }
         self.signals.selection_changed.emit(payload)
+
+    def _on_edge_double_clicked(self, edge_item) -> None:
+        self.signals.segment_double_clicked.emit(edge_item)
 
     # -------------------- Export --------------------
     def export_to_png(self, path: str, with_background: bool = True) -> None:

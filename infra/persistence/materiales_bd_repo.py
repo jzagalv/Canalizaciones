@@ -16,9 +16,50 @@ def _base_doc() -> Dict[str, Any]:
         "kind": "material_library",
         "meta": {"name": "Materiales", "created": "", "source": ""},
         "conductors": [],
-        "containments": {"ducts": [], "trays": [], "epc": [], "bpc": []},
+        "containments": {"ducts": [], "epc": [], "bpc": []},
         "rules": {},
     }
+
+def _sorted_rect_items(items: list) -> list:
+    return sorted(
+        items,
+        key=lambda it: (
+            _coerce_float(it.get("inner_width_mm")),
+            _coerce_float(it.get("inner_height_mm")),
+            str(it.get("id") or ""),
+        ),
+    )
+
+
+def _merge_rect_items(existing: list, incoming: list) -> list:
+    out = list(existing or [])
+    seen_ids = {str(it.get("id") or "").strip().lower() for it in out if it.get("id")}
+    seen_names = {str(it.get("name") or "").strip().lower() for it in out if it.get("name")}
+    for it in incoming or []:
+        it_id = str(it.get("id") or "").strip().lower()
+        it_name = str(it.get("name") or "").strip().lower()
+        if (it_id and it_id in seen_ids) or (it_name and it_name in seen_names):
+            continue
+        out.append(dict(it))
+        if it_id:
+            seen_ids.add(it_id)
+        if it_name:
+            seen_names.add(it_name)
+    return _sorted_rect_items(out)
+
+
+def _migrate_trays(doc: Dict[str, Any]) -> Dict[str, Any]:
+    cont = doc.get("containments") or {}
+    trays = list(cont.get("trays") or [])
+    if not trays:
+        cont.pop("trays", None)
+        doc["containments"] = cont
+        return doc
+    cont["epc"] = _merge_rect_items(cont.get("epc") or [], trays)
+    cont["bpc"] = _merge_rect_items(cont.get("bpc") or [], trays)
+    cont.pop("trays", None)
+    doc["containments"] = cont
+    return doc
 
 
 def load_materiales_bd(path: str) -> Dict[str, Any]:
@@ -44,12 +85,11 @@ def load_materiales_bd(path: str) -> Dict[str, Any]:
 
     cont = data.get("containments") or {}
     cont.setdefault("ducts", [])
-    cont.setdefault("trays", [])
     cont.setdefault("epc", [])
     cont.setdefault("bpc", [])
     data["containments"] = cont
 
-    return data
+    return _migrate_trays(data)
 
 
 def save_materiales_bd(path: str, data: Dict[str, Any]) -> None:
@@ -63,11 +103,18 @@ def save_materiales_bd(path: str, data: Dict[str, Any]) -> None:
     doc.setdefault("containments", base["containments"])
     doc.setdefault("rules", base["rules"])
 
+    doc = _migrate_trays(doc)
     cont = doc.get("containments") or {}
     cont.setdefault("ducts", [])
-    cont.setdefault("trays", [])
     cont.setdefault("epc", [])
     cont.setdefault("bpc", [])
     doc["containments"] = cont
 
     p.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _coerce_float(value: Any) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return 0.0

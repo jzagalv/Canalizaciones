@@ -1315,9 +1315,97 @@
         "tags": []
       }
     ],
-    "epc": [],
-    "bpc": [],
-    "trays": [
+    "epc": [
+      {
+        "id": "tray_100x100_mm_100x100",
+        "name": "100x100 mm 100x100",
+        "shape": "rectangular",
+        "inner_width_mm": 100.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_150x100_mm_150x100",
+        "name": "150x100 mm 150x100",
+        "shape": "rectangular",
+        "inner_width_mm": 150.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_200x100_mm_200x100",
+        "name": "200x100 mm 200x100",
+        "shape": "rectangular",
+        "inner_width_mm": 200.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_300x100_mm_300x100",
+        "name": "300x100 mm 300x100",
+        "shape": "rectangular",
+        "inner_width_mm": 300.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_400x100_mm_400x100",
+        "name": "400x100 mm 400x100",
+        "shape": "rectangular",
+        "inner_width_mm": 400.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_450x100_mm_450x100",
+        "name": "450x100 mm 450x100",
+        "shape": "rectangular",
+        "inner_width_mm": 450.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_500x100_mm_500x100",
+        "name": "500x100 mm 500x100",
+        "shape": "rectangular",
+        "inner_width_mm": 500.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_600x100_mm_600x100",
+        "name": "600x100 mm 600x100",
+        "shape": "rectangular",
+        "inner_width_mm": 600.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      }
+    ],
+    "bpc": [
       {
         "id": "tray_100x100_mm_100x100",
         "name": "100x100 mm 100x100",

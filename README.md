@@ -37,7 +37,7 @@ En **Canvas**, busca el elemento en la **Biblioteca** (panel izquierdo), arrást
 ## Gestión de materiales_bd.lib y plantillas
 
 Desde **Librerías > Administrador de Librerías y Plantillas**:
-- **materiales_bd.lib**: carga/guarda el archivo y edita ítems por categoría (conductors/ducts/trays/epc/bpc).
+- **materiales_bd.lib**: carga/guarda el archivo y edita ítems por categoría (conductors/ducts/epc/bpc).
 - **Plantillas base**: carga/guarda plantillas base y define el tipo de instalación.
 
 ### Formato JSON (materiales_bd.lib)
@@ -56,7 +56,6 @@ Desde **Librerías > Administrador de Librerías y Plantillas**:
   "conductors": [],
   "containments": {
     "ducts": [],
-    "trays": [],
     "epc": [],
     "bpc": []
   },

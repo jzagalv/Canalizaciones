@@ -34,7 +34,6 @@ def merge_libs(loaded_libs: List[Dict[str, Any]]) -> EffectiveCatalog:
     ducts: List[Dict[str, Any]] = []
     epc: List[Dict[str, Any]] = []
     bpc: List[Dict[str, Any]] = []
-    trays: List[Dict[str, Any]] = []
     rules: Dict[str, Any] = {'separation': [], 'defaults': {}}
 
     profiles: List[Dict[str, Any]] = []
@@ -51,7 +50,6 @@ def merge_libs(loaded_libs: List[Dict[str, Any]]) -> EffectiveCatalog:
             ducts += list(cont.get('ducts') or [])
             epc += list(cont.get('epc') or [])
             bpc += list(cont.get('bpc') or [])
-            trays += list(cont.get('trays') or [])
 
             r = doc.get('rules') or {}
             rules['separation'] += list(r.get('separation') or [])
@@ -69,7 +67,6 @@ def merge_libs(loaded_libs: List[Dict[str, Any]]) -> EffectiveCatalog:
         'ducts_by_id': _merge_by_id(ducts, warnings, 'ducts'),
         'epc_by_id': _merge_by_id(epc, warnings, 'epc'),
         'bpc_by_id': _merge_by_id(bpc, warnings, 'bpc'),
-        'trays_by_id': _merge_by_id(trays, warnings, 'trays'),
         'rules': rules,
     }
 

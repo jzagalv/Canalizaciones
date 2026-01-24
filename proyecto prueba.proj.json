@@ -2,11 +2,17 @@
   "project_version": "1.0",
   "name": "Nuevo proyecto",
   "active_profile": "ss_conventional",
-  "active_materiales_bd_path": "",
+  "active_materiales_bd_path": "C:/Users/jorge/OneDrive/Documentos/Python/Canalizaciones/libs/materiales_bd.lib",
   "active_library_path": "",
   "active_template_path": "",
   "active_installation_type": "",
-  "libraries": [],
+  "libraries": [
+    {
+      "path": "C:/Users/jorge/OneDrive/Documentos/Python/Canalizaciones/libs/materiales_bd.lib",
+      "enabled": true,
+      "priority": 10
+    }
+  ],
   "canvas": {
     "nodes": [
       {
@@ -209,16 +215,37 @@
       "image_format": "png"
     },
     "view": {
-      "scale": 1.1730342438225618,
+      "scale": 1.0200297772370104,
       "center": [
-        4103.887013828888,
-        3195.9851297973614
+        4141.055579222102,
+        3185.201130893137
       ]
     }
   },
   "circuits": {
     "source": "none",
-    "items": []
+    "items": [
+      {
+        "id": "C573c1fdc",
+        "equipment_node_id": "N1",
+        "name": "Nuevo circuito",
+        "service": "power",
+        "cable_ref": "",
+        "qty": 1,
+        "from_node": "LCC-HT1",
+        "to_node": "LCC-H1"
+      },
+      {
+        "id": "Ceff7f57c",
+        "equipment_node_id": "N1",
+        "name": "Nuevo circuito",
+        "service": "power",
+        "cable_ref": "",
+        "qty": 1,
+        "from_node": "LCC-HT1",
+        "to_node": "LCC-H1"
+      }
+    ]
   },
   "primary_equipment": []
 }

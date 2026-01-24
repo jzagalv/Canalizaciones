@@ -21,7 +21,6 @@ from PyQt5.QtWidgets import (
 
 from ui.dialogs.editors.conductor_editor_dialog import ConductorEditorDialog
 from ui.dialogs.editors.duct_editor_dialog import DuctEditorDialog
-from ui.dialogs.editors.tray_editor_dialog import TrayEditorDialog
 from ui.dialogs.editors.epc_editor_dialog import EPCEditorDialog
 from ui.dialogs.editors.bpc_editor_dialog import BPCEditorDialog
 
@@ -35,7 +34,6 @@ class LibraryEditorWidget(QWidget):
         self._categories: List[Tuple[str, str]] = [
             ("conductors", "Conductores"),
             ("ducts", "Ductos"),
-            ("trays", "Bandejas"),
             ("epc", "EPC"),
             ("bpc", "BPC"),
         ]
@@ -194,8 +192,6 @@ class LibraryEditorWidget(QWidget):
         existing_ids = self._existing_ids(category, exclude_id=(data or {}).get("id"))
         if category == "ducts":
             dlg = DuctEditorDialog(data=data, existing_ids=existing_ids, parent=self)
-        elif category == "trays":
-            dlg = TrayEditorDialog(data=data, existing_ids=existing_ids, parent=self)
         elif category == "epc":
             dlg = EPCEditorDialog(data=data, existing_ids=existing_ids, parent=self)
         elif category == "bpc":

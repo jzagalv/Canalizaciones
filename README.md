@@ -30,6 +30,11 @@ python app/main.py
    - Cantidad
 7. Recalcula y revisa **Resultados**.
 
+## Selección de cables y ductos desde librería
+
+- En **Circuitos**, la columna **Cable** lista cables desde `materiales_bd.lib`, filtrados por servicio.
+- En **Características del tramo**, al elegir **Ducto** selecciona primero la **Norma** y luego el ducto específico.
+
 ## Cómo agregar elementos
 
 En **Canvas**, busca el elemento en la **Biblioteca** (panel izquierdo), arrástralo y suéltalo sobre el canvas. No hay botones de inserción manual.

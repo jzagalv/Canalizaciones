@@ -1,4 +1,8 @@
-﻿## 0.6.0 - 2026-01-23
+﻿## 0.6.1 - 2026-01-24
+- Added: Cable combobox selector in Circuits
+- Added: Duct selection by standard (norma) in tramo dialog
+
+## 0.6.0 - 2026-01-23
 - Added: Administrador de materiales_bd.lib (ventana flotante).
 - Added: Editor CRUD por categoría (conductors/ducts/epc/bpc) con diálogos específicos.
 - Changed: Menú "Librerías" con acciones para materiales_bd.lib.

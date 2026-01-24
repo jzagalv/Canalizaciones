@@ -101,6 +101,12 @@ class ConduitSegmentDialog(QDialog):
         self.cmb_type.addItems(["Ducto", "EPC", "BPC"])
         self.cmb_type.currentTextChanged.connect(self._on_type_changed)
 
+        self.cmb_duct_standard = QComboBox()
+        self.cmb_duct_standard.currentTextChanged.connect(self._on_duct_standard_changed)
+
+        self.cmb_duct = QComboBox()
+        self.cmb_duct.currentIndexChanged.connect(self._on_duct_changed)
+
         self.cmb_size = QComboBox()
         self.cmb_size.currentTextChanged.connect(self._on_size_changed)
 
@@ -121,7 +127,12 @@ class ConduitSegmentDialog(QDialog):
 
         form.addRow("Tag del tramo:", self.edt_tag)
         form.addRow("Tipo de canalización:", self.cmb_type)
-        form.addRow("Tamaño general:", self.cmb_size)
+        self.lbl_duct_standard = QLabel("Norma:")
+        form.addRow(self.lbl_duct_standard, self.cmb_duct_standard)
+        self.lbl_duct = QLabel("Ducto:")
+        form.addRow(self.lbl_duct, self.cmb_duct)
+        self.lbl_size = QLabel("Tamaño general:")
+        form.addRow(self.lbl_size, self.cmb_size)
         form.addRow("Cantidad:", self.spin_qty)
         form.addRow("Columnas:", self.spin_cols)
         self.lbl_spacing = QLabel("Separacion entre ductos (mm):")
@@ -183,6 +194,7 @@ class ConduitSegmentDialog(QDialog):
     def set_material_service(self, material_service: Optional[MaterialService]) -> None:
         self._material_service = material_service
         self._reload_sizes_for_type(self.cmb_type.currentText().strip())
+        self._update_type_controls_visibility(self.cmb_type.currentText().strip())
 
     def set_segment(self, segment_item) -> None:
         self._segment = segment_item if self._is_segment_alive(segment_item) else None
@@ -210,7 +222,12 @@ class ConduitSegmentDialog(QDialog):
         self.cmb_type.setCurrentIndex(idx if idx >= 0 else 0)
 
         size = props.get("size", '1"')
-        self._reload_sizes_for_type(conduit_type, desired=size)
+        self._reload_sizes_for_type(
+            conduit_type,
+            desired=size,
+            duct_standard=props.get("duct_standard"),
+            duct_id=props.get("duct_id"),
+        )
         qty = int(props.get("quantity", 1) or 1)
         self.spin_qty.setValue(qty)
         cols = int(props.get("columns", 3) or 3)
@@ -243,6 +260,8 @@ class ConduitSegmentDialog(QDialog):
                 "tag": "",
                 "conduit_type": "Ducto",
                 "size": '1"',
+                "duct_standard": "",
+                "duct_id": "",
                 "quantity": 1,
                 "columns": 3,
                 "cables": [],
@@ -259,23 +278,49 @@ class ConduitSegmentDialog(QDialog):
                 segment_item.props = dict(props)
             except Exception:
                 pass
+        if "duct_standard" not in props:
+            props["duct_standard"] = ""
+            try:
+                segment_item.props = dict(props)
+            except Exception:
+                pass
+        if "duct_id" not in props:
+            props["duct_id"] = ""
+            try:
+                segment_item.props = dict(props)
+            except Exception:
+                pass
         return dict(props)
 
     def _on_type_changed(self, text: str) -> None:
         self._reload_sizes_for_type(text)
+        self._update_type_controls_visibility(text)
         if text.strip() == "Ducto" and not self._spacing_custom:
-            self._apply_default_spacing_for_size(self.cmb_size.currentText().strip())
+            self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._update_spacing_visibility()
         self._render_section()
 
     def _on_size_changed(self, text: str) -> None:
         if self.cmb_type.currentText().strip() == "Ducto" and not self._spacing_custom:
-            self._apply_default_spacing_for_size(text)
+            self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
+        self._render_section()
+
+    def _on_duct_standard_changed(self, text: str) -> None:
+        desired_id = self._current_duct_id()
+        desired_label = self.cmb_duct.currentText().strip()
+        self._reload_ducts_for_standard(text, desired_id=desired_id, desired_label=desired_label)
+        if self.cmb_type.currentText().strip() == "Ducto" and not self._spacing_custom:
+            self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
+        self._render_section()
+
+    def _on_duct_changed(self, index: int) -> None:
+        if self.cmb_type.currentText().strip() == "Ducto" and not self._spacing_custom:
+            self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._render_section()
 
     def _on_qty_changed(self, value: int) -> None:
         if self._spacing_is_applicable() and not self._spacing_custom:
-            self._apply_default_spacing_for_size(self.cmb_size.currentText().strip())
+            self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._update_spacing_visibility()
         self._render_section()
 
@@ -295,12 +340,20 @@ class ConduitSegmentDialog(QDialog):
         existing = self._segment_props(self._segment)
         conduit_type = self.cmb_type.currentText().strip()
         size = self._ensure_valid_size_selection(conduit_type, fallback=str(existing.get("size") or ""))
+        duct_standard = ""
+        duct_id = ""
+        if conduit_type == "Ducto":
+            duct_standard = self._current_duct_standard()
+            duct_id = self._current_duct_id()
+            size = self._current_duct_label() or size
         fill_percent, max_fill = self._compute_fill_percent()
         fill_over = bool(max_fill > 0 and fill_percent > max_fill + 1e-6)
         props = {
             "tag": self.edt_tag.text().strip(),
             "conduit_type": conduit_type,
             "size": size,
+            "duct_standard": duct_standard,
+            "duct_id": duct_id,
             "quantity": int(self.spin_qty.value() or 1),
             "columns": int(self.spin_cols.value() or 1),
             "cables": list(existing.get("cables") or []),
@@ -340,7 +393,9 @@ class ConduitSegmentDialog(QDialog):
         cable_groups = self._split_cables(n, self._expand_cables(self._segment_cables()))
 
         if conduit_type == "Ducto":
-            inner_mm, outer_mm = self._duct_dimensions_mm(size)
+            duct_id = self._current_duct_id()
+            size_label = self._current_duct_label() or size
+            inner_mm, outer_mm = self._duct_dimensions_mm(size_label, duct_id)
             px_per_mm = self._duct_pixels_per_mm(outer_mm)
             outer_px = outer_mm * px_per_mm if outer_mm > 0 else 70.0
             inner_px = inner_mm * px_per_mm if inner_mm > 0 else outer_px - 12.0
@@ -348,7 +403,7 @@ class ConduitSegmentDialog(QDialog):
             inner_px = min(inner_px, outer_px - 6.0)
             inner_px = max(1.0, inner_px)
             inner_margin = max(2.0, (outer_px - inner_px) / 2.0)
-            spacing_mm = self._current_spacing_mm(size)
+            spacing_mm = self._current_spacing_mm(size_label, duct_id)
             gap_px = max(0.0, spacing_mm * px_per_mm)
             item_w = outer_px
             item_h = outer_px + label_gap + label_h
@@ -392,7 +447,7 @@ class ConduitSegmentDialog(QDialog):
                     self.section_scene.addItem(marker)
                     items.append(marker)
 
-                label = QGraphicsSimpleTextItem(size or '1"')
+                label = QGraphicsSimpleTextItem(size_label or '1"')
                 label.setFont(font)
                 label_rect = label.boundingRect()
                 label.setPos(x + outer_px / 2 - label_rect.width() / 2, y + outer_px + label_gap)
@@ -547,8 +602,22 @@ class ConduitSegmentDialog(QDialog):
         h = max(40.0, min(120.0, h))
         return w, h
 
-    def _reload_sizes_for_type(self, conduit_type: Optional[str] = None, desired: Optional[str] = None) -> None:
+    def _reload_sizes_for_type(
+        self,
+        conduit_type: Optional[str] = None,
+        desired: Optional[str] = None,
+        duct_standard: Optional[str] = None,
+        duct_id: Optional[str] = None,
+    ) -> None:
         conduit_type = conduit_type or self.cmb_type.currentText().strip()
+        if conduit_type == "Ducto":
+            self._reload_duct_standards(desired_standard=duct_standard)
+            self._reload_ducts_for_standard(
+                self._current_duct_standard(),
+                desired_id=duct_id,
+                desired_label=desired,
+            )
+            return
         current = desired if desired is not None else self.cmb_size.currentText().strip()
         options = self._available_sizes(conduit_type)
         self.cmb_size.blockSignals(True)
@@ -576,13 +645,108 @@ class ConduitSegmentDialog(QDialog):
                 return self._material_service.list_bpc_sizes()
         return list(self._size_options.get(conduit_type, []))
 
+    def _reload_duct_standards(self, desired_standard: Optional[str] = None) -> None:
+        standards = self._material_service.list_duct_standards() if self._material_service else []
+        current = str(desired_standard or "").strip()
+        self.cmb_duct_standard.blockSignals(True)
+        self.cmb_duct_standard.clear()
+        self.cmb_duct_standard.addItem("(sin selección)", "")
+        for std in standards:
+            self.cmb_duct_standard.addItem(std, std)
+        if current:
+            idx = self.cmb_duct_standard.findData(current)
+            if idx >= 0:
+                self.cmb_duct_standard.setCurrentIndex(idx)
+        self.cmb_duct_standard.blockSignals(False)
+        if standards:
+            self.cmb_duct_standard.setToolTip("")
+        else:
+            self.cmb_duct_standard.setToolTip("Sin normas en BD")
+
+    def _reload_ducts_for_standard(
+        self,
+        standard: Optional[str],
+        desired_id: Optional[str] = None,
+        desired_label: Optional[str] = None,
+    ) -> None:
+        ducts = self._material_service.list_ducts_by_standard(standard) if self._material_service else []
+        self.cmb_duct.blockSignals(True)
+        self.cmb_duct.clear()
+        if ducts:
+            for duct in ducts:
+                label = str(duct.get("name") or duct.get("nominal") or duct.get("id") or "")
+                self.cmb_duct.addItem(label, str(duct.get("id") or ""))
+            selected = self._resolve_duct_id(ducts, desired_id, desired_label)
+            if selected:
+                idx = self.cmb_duct.findData(selected)
+                if idx >= 0:
+                    self.cmb_duct.setCurrentIndex(idx)
+            self.cmb_duct.setEnabled(True)
+            self.cmb_duct.setToolTip("")
+        else:
+            self.cmb_duct.addItem("Sin ductos en BD", "")
+            self.cmb_duct.setEnabled(False)
+            std_label = str(standard or "").strip() or "(sin selección)"
+            self.cmb_duct.setToolTip(f"Sin ductos para norma: {std_label}")
+        self.cmb_duct.blockSignals(False)
+
+    def _resolve_duct_id(
+        self,
+        ducts: List[Dict[str, object]],
+        desired_id: Optional[str],
+        desired_label: Optional[str],
+    ) -> Optional[str]:
+        if desired_id:
+            desired_norm = str(desired_id).strip().lower()
+            for duct in ducts:
+                if str(duct.get("id") or "").strip().lower() == desired_norm:
+                    return str(duct.get("id") or "")
+        if desired_label:
+            desired_norm = str(desired_label).strip().lower()
+            for duct in ducts:
+                name = str(duct.get("name") or "").strip().lower()
+                nominal = str(duct.get("nominal") or "").strip().lower()
+                if desired_norm and desired_norm in (name, nominal):
+                    return str(duct.get("id") or "")
+        return None
+
+    def _current_duct_standard(self) -> str:
+        if not self.cmb_duct_standard.isEnabled():
+            return ""
+        return str(self.cmb_duct_standard.currentData() or "").strip()
+
+    def _current_duct_id(self) -> str:
+        if not self.cmb_duct.isEnabled():
+            return ""
+        return str(self.cmb_duct.currentData() or "").strip()
+
+    def _current_duct_item(self) -> Dict[str, object]:
+        duct_id = self._current_duct_id()
+        if not duct_id or not self._material_service:
+            return {}
+        ducts = self._material_service.list_ducts_by_standard(self._current_duct_standard())
+        for duct in ducts:
+            if str(duct.get("id") or "") == duct_id:
+                return duct
+        return {}
+
+    def _current_duct_label(self) -> str:
+        item = self._current_duct_item()
+        if item:
+            return str(item.get("name") or item.get("nominal") or item.get("id") or "")
+        return self.cmb_duct.currentText().strip()
+
     def _current_size_for_type(self, conduit_type: str, fallback: str) -> str:
+        if conduit_type == "Ducto":
+            return self._current_duct_label() or fallback
         if not self.cmb_size.isEnabled():
             return fallback
         current = self.cmb_size.currentText().strip()
         return current or fallback
 
     def _ensure_valid_size_selection(self, conduit_type: str, fallback: str = "") -> str:
+        if conduit_type == "Ducto":
+            return self._current_duct_label() or fallback
         if not self.cmb_size.isEnabled():
             return fallback
         sizes = self._available_sizes(conduit_type)
@@ -596,9 +760,12 @@ class ConduitSegmentDialog(QDialog):
         self.cmb_size.blockSignals(False)
         return self.cmb_size.currentText().strip()
 
-    def _duct_dimensions_mm(self, size: str) -> Tuple[float, float]:
+    def _duct_dimensions_mm(self, size: str, duct_id: Optional[str] = None) -> Tuple[float, float]:
         if self._material_service:
-            dims = self._material_service.get_duct_dimensions(size)
+            if duct_id:
+                dims = self._material_service.get_duct_dimensions_by_id(duct_id)
+            else:
+                dims = self._material_service.get_duct_dimensions(size)
             return float(dims.get("inner_diameter_mm", 0.0)), float(dims.get("outer_diameter_mm", 0.0))
         inner = self._fallback_duct_inner_mm(size)
         outer = inner + max(4.0, inner * 0.1)
@@ -642,26 +809,36 @@ class ConduitSegmentDialog(QDialog):
         self.spin_spacing.setVisible(visible)
         self.lbl_spacing.setVisible(visible)
 
-    def _apply_default_spacing_for_size(self, size: str) -> None:
-        self._set_spacing_value(self._default_duct_spacing_mm(size))
+    def _update_type_controls_visibility(self, conduit_type: Optional[str] = None) -> None:
+        conduit_type = conduit_type or self.cmb_type.currentText().strip()
+        is_duct = conduit_type == "Ducto"
+        self.lbl_duct_standard.setVisible(is_duct)
+        self.cmb_duct_standard.setVisible(is_duct)
+        self.lbl_duct.setVisible(is_duct)
+        self.cmb_duct.setVisible(is_duct)
+        self.lbl_size.setVisible(not is_duct)
+        self.cmb_size.setVisible(not is_duct)
+
+    def _apply_default_spacing_for_size(self, size: str, duct_id: Optional[str] = None) -> None:
+        self._set_spacing_value(self._default_duct_spacing_mm(size, duct_id))
 
     def _set_spacing_value(self, value: float) -> None:
         self._setting_spacing = True
         self.spin_spacing.setValue(float(value))
         self._setting_spacing = False
 
-    def _default_duct_spacing_mm(self, size: str) -> float:
-        _, outer_mm = self._duct_dimensions_mm(size)
+    def _default_duct_spacing_mm(self, size: str, duct_id: Optional[str] = None) -> float:
+        _, outer_mm = self._duct_dimensions_mm(size, duct_id)
         if outer_mm <= 0:
             return 25.0
         return max(25.0, 0.25 * outer_mm)
 
-    def _current_spacing_mm(self, size: str) -> float:
+    def _current_spacing_mm(self, size: str, duct_id: Optional[str] = None) -> float:
         if not self._spacing_is_applicable():
             return 0.0
         spacing = float(self.spin_spacing.value() or 0.0)
         if spacing <= 0 and not self._spacing_custom:
-            spacing = self._default_duct_spacing_mm(size)
+            spacing = self._default_duct_spacing_mm(size, duct_id)
         return max(0.0, spacing)
 
     def _duct_pixels_per_mm(self, outer_mm: float) -> float:
@@ -675,7 +852,7 @@ class ConduitSegmentDialog(QDialog):
         spacing = props.get("duct_spacing_mm")
         custom = bool(props.get("duct_spacing_custom"))
         if spacing is None or (not custom and float(spacing or 0.0) <= 0.0):
-            spacing = self._default_duct_spacing_mm(size)
+            spacing = self._default_duct_spacing_mm(size, self._current_duct_id())
             custom = False
         self._spacing_custom = custom
         self._set_spacing_value(float(spacing or 0.0))
@@ -711,7 +888,9 @@ class ConduitSegmentDialog(QDialog):
         cable_groups = self._split_cables(n, expanded)
 
         if conduit_type == "Ducto":
-            material = self._duct_material(size)
+            duct_id = self._current_duct_id()
+            size_label = self._current_duct_label() or size
+            material = self._duct_material(size_label, duct_id)
             max_fill = get_material_max_fill_percent(material, DEFAULT_DUCT_MAX_FILL_PERCENT)
             fills = [calc_duct_fill(material, cables) for cables in cable_groups]
         else:
@@ -733,13 +912,16 @@ class ConduitSegmentDialog(QDialog):
         else:
             self.lbl_status.setStyleSheet("")
 
-    def _duct_material(self, size: str) -> Dict[str, object]:
+    def _duct_material(self, size: str, duct_id: Optional[str] = None) -> Dict[str, object]:
         if self._material_service:
-            material = self._material_service.get_duct_material(size)
+            if duct_id:
+                material = self._material_service.get_duct_material_by_id(duct_id)
+            else:
+                material = self._material_service.get_duct_material(size)
         else:
             material = {}
         if not material:
-            inner_mm, _ = self._duct_dimensions_mm(size)
+            inner_mm, _ = self._duct_dimensions_mm(size, duct_id)
             material = {"inner_diameter_mm": inner_mm}
         return material
 

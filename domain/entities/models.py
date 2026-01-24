@@ -17,6 +17,9 @@ class Project:
     project_version: str = '1.0'
     name: str = 'Nuevo proyecto'
     active_profile: str = 'ss_conventional'
+    active_library_path: str = ''
+    active_template_path: str = ''
+    active_installation_type: str = ''
     libraries: List[LibraryRef] = field(default_factory=list)
     canvas: Dict = field(default_factory=lambda: {'nodes': [], 'edges': []})
     circuits: Dict = field(default_factory=lambda: {'source': 'none', 'items': []})

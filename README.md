@@ -18,19 +18,63 @@ python app/main.py
    - `libs/materiales_bd.lib`
    - `libs/plantillas_bd.lib`
    - `libs/equipment_library.lib`
-3. En la pestaña **Canvas**, usa la **Biblioteca** lateral para arrastrar Equipos/GAP/Cámaras al canvas.
+3. En **Herramientas > Librerías y Plantillas**, carga tu librería de materiales y plantilla base.
+   - Define el **tipo de instalación** y guarda la plantilla base si corresponde.
+4. En la pestaña **Canvas**, usa la **Biblioteca** lateral para arrastrar Equipos/GAP/Cámaras al canvas.
    - Opcional: en el Canvas puedes cargar un plano como fondo (botón **Cargar plano**) para posicionar equipos y canalizaciones sobre la imagen.
-4. Conecta nodos con el botón **Conectar tramo**.
-5. Selecciona un tramo para editar:
+5. Conecta nodos con el botón **Conectar tramo**.
+6. Selecciona un tramo para editar:
    - Tipo (DUCT/EPC/BPC)
    - Modo (auto/manual)
    - Tamaño (catálogo)
    - Cantidad
-6. Recalcula y revisa **Resultados**.
+7. Recalcula y revisa **Resultados**.
 
 ## Cómo agregar elementos
 
 En **Canvas**, busca el elemento en la **Biblioteca** (panel izquierdo), arrástralo y suéltalo sobre el canvas. No hay botones de inserción manual.
+
+## Gestión de librerías y plantillas
+
+Desde **Herramientas > Librerías y Plantillas**:
+- **Librerías de materiales**: carga/guarda librerías JSON y edita ítems por categoría.
+- **Plantillas**: carga/guarda plantillas base y define el tipo de instalación.
+
+### Formato JSON (librerías de materiales)
+
+`materials_library.json`:
+
+```json
+{
+  "schema_version": 1,
+  "name": "Mi Librería",
+  "items": {
+    "cables": [],
+    "ducts": [],
+    "epc": [],
+    "bpc": []
+  }
+}
+```
+
+### Formato JSON (plantillas base)
+
+`base_template.json`:
+
+```json
+{
+  "schema_version": 1,
+  "installation_type": "Subestación",
+  "defaults": {}
+}
+```
+
+### Extender tipos de material
+
+Para agregar un nuevo tipo:
+1. Crea una nueva categoría en `MaterialsLibrary.items`.
+2. Agrega columnas y un diálogo de edición dedicado en UI.
+3. Actualiza el editor para mostrar/validar el nuevo tipo.
 
 ## Canvas: plano de fondo (para informes)
 

@@ -1,4 +1,9 @@
-﻿## 0.4.0 - 2026-01-23
+﻿## 0.5.0 - 2026-01-23
+- Added: Ventana "Gestión de Librerías y Plantillas".
+- Added: Editor CRUD de materiales por categoría con diálogos específicos.
+- Changed: Menú "Herramientas" con acceso a la nueva ventana.
+
+## 0.4.0 - 2026-01-23
 - Added: Biblioteca con Drag&Drop para Equipos/GAP/Cámaras.
 - Changed: Eliminados botones de inserción manual en Canvas.
 - Fixed: compatibilidad de Drag&Drop con MIME antiguo.
@@ -49,3 +54,4 @@
   - Exportación del canvas a PNG y PDF para adjuntar a informes.
 - Fix: CanvasTab completado (métodos faltantes y conexiones) y toolbar consolidada.
 - Fix: CanvasView (DnD) y CanvasItems (imports/compatibilidad NodeData) para evitar crashes.
+

@@ -197,6 +197,8 @@ class MainWindow(QMainWindow):
         self.tab_canvas.project_changed.connect(self._on_project_mutated)
         self.tab_circuits.project_changed.connect(self._on_project_mutated)
 
+        self.tab_circuits.set_material_service(self._material_service)
+
         self.tab_canvas.selection_changed.connect(self.tab_circuits.set_active_node)
         self.tab_canvas.project_changed.connect(self.tab_circuits.reload_node_lists)
         self.tab_canvas.segment_double_clicked.connect(self.open_segment_dialog)
@@ -561,6 +563,7 @@ class MainWindow(QMainWindow):
     def _update_material_service(self) -> None:
         path = self._materiales_path or self.project.active_materiales_bd_path or ""
         self._materiales_repo.set_path(path)
+        self.tab_circuits.set_material_service(self._material_service)
         if self._segment_dialog is not None:
             try:
                 self._segment_dialog.set_material_service(self._material_service)

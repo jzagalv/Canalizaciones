@@ -65,6 +65,15 @@ class MaterialesRepo:
                 return dict(item)
         return None
 
+    def get_duct_by_id(self, duct_id: str) -> Optional[Dict[str, Any]]:
+        target = str(duct_id or "").strip().lower()
+        if not target:
+            return None
+        for item in self._containments().get("ducts", []):
+            if str(item.get("id") or "").strip().lower() == target:
+                return dict(item)
+        return None
+
     def get_tray_by_size(self, size: str) -> Optional[Dict[str, Any]]:
         return self._get_rect_by_size("epc", size)
 
@@ -88,10 +97,40 @@ class MaterialesRepo:
                 return dict(item)
         return None
 
+    def list_conductors(self, service: Optional[str] = None) -> List[Dict[str, Any]]:
+        doc = self._load()
+        items = list(doc.get("conductors") or [])
+        service_norm = str(service or "").strip().lower()
+        if service_norm:
+            items = [
+                it for it in items
+                if str(it.get("service") or "").strip().lower() == service_norm
+            ]
+        return [dict(it) for it in items]
+
     def list_duct_nominals(self) -> List[str]:
         items = [str(i.get("nominal") or "").strip() for i in self._containments().get("ducts", [])]
         items = [i for i in items if i]
         return sorted(set(items))
+
+    def list_duct_standards(self) -> List[str]:
+        items = [
+            str(i.get("standard") or "").strip()
+            for i in self._containments().get("ducts", [])
+        ]
+        items = [i for i in items if i]
+        return sorted(set(items))
+
+    def list_ducts_by_standard(self, standard: Optional[str]) -> List[Dict[str, Any]]:
+        ducts = self._containments().get("ducts", [])
+        std_norm = str(standard or "").strip().lower()
+        if not std_norm:
+            return [dict(it) for it in ducts]
+        out = []
+        for it in ducts:
+            if str(it.get("standard") or "").strip().lower() == std_norm:
+                out.append(dict(it))
+        return out
 
     def list_rect_sizes(self, kind: str) -> List[str]:
         key = _normalize_kind(kind)

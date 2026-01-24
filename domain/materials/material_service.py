@@ -9,6 +9,9 @@ class MaterialsRepository(Protocol):
     def get_duct_by_nominal(self, nominal_in: str) -> Optional[Dict[str, Any]]:
         ...
 
+    def get_duct_by_id(self, duct_id: str) -> Optional[Dict[str, Any]]:
+        ...
+
     def get_tray_by_size(self, size: str) -> Optional[Dict[str, Any]]:
         ...
 
@@ -21,7 +24,16 @@ class MaterialsRepository(Protocol):
     def get_cable_by_code(self, code: str) -> Optional[Dict[str, Any]]:
         ...
 
+    def list_conductors(self, service: Optional[str] = None) -> List[Dict[str, Any]]:
+        ...
+
     def list_duct_nominals(self) -> List[str]:
+        ...
+
+    def list_duct_standards(self) -> List[str]:
+        ...
+
+    def list_ducts_by_standard(self, standard: Optional[str]) -> List[Dict[str, Any]]:
         ...
 
     def list_rect_sizes(self, kind: str) -> List[str]:
@@ -36,6 +48,14 @@ class MaterialService:
         item = None
         try:
             item = self._repo.get_duct_by_nominal(nominal_in)
+        except Exception:
+            item = None
+        return dict(item) if item else {}
+
+    def get_duct_material_by_id(self, duct_id: str) -> Dict[str, Any]:
+        item = None
+        try:
+            item = self._repo.get_duct_by_id(duct_id)
         except Exception:
             item = None
         return dict(item) if item else {}
@@ -57,6 +77,24 @@ class MaterialService:
     def list_duct_nominals(self) -> List[str]:
         try:
             return list(self._repo.list_duct_nominals() or [])
+        except Exception:
+            return []
+
+    def list_duct_standards(self) -> List[str]:
+        try:
+            return list(self._repo.list_duct_standards() or [])
+        except Exception:
+            return []
+
+    def list_ducts_by_standard(self, standard: Optional[str]) -> List[Dict[str, Any]]:
+        try:
+            return list(self._repo.list_ducts_by_standard(standard) or [])
+        except Exception:
+            return []
+
+    def list_conductors(self, service: Optional[str] = None) -> List[Dict[str, Any]]:
+        try:
+            return list(self._repo.list_conductors(service) or [])
         except Exception:
             return []
 
@@ -105,6 +143,27 @@ class MaterialService:
             "found": bool(item),
         }
 
+    def get_duct_dimensions_by_id(self, duct_id: str) -> Dict[str, float]:
+        item = None
+        try:
+            item = self._repo.get_duct_by_id(duct_id)
+        except Exception:
+            item = None
+        inner = _coerce_mm(item.get("inner_diameter_mm") if item else None)
+        outer = _coerce_mm(item.get("outer_diameter_mm") if item else None)
+        if inner <= 0 and item:
+            inner = _fallback_duct_inner_mm(item.get("nominal") or "")
+        if inner <= 0:
+            inner = 50.0
+        if outer <= 0:
+            outer = _estimate_duct_outer_mm(inner)
+        if outer < inner + 1.0:
+            outer = inner + 1.0
+        return {
+            "inner_diameter_mm": inner,
+            "outer_diameter_mm": outer,
+            "found": bool(item),
+        }
     def get_rect_dimensions(self, kind: str, size: str) -> Dict[str, float]:
         kind_norm = str(kind or "").strip().lower()
         item = None

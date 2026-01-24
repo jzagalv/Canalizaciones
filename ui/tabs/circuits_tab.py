@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
 
 from data.repositories.lib_merge import EffectiveCatalog
 from domain.entities.models import Project
+from domain.materials.material_service import MaterialService
 from domain.services.canvas_nodes import NodeOption, list_canvas_nodes_for_circuits
 
 
@@ -33,6 +34,7 @@ class CircuitsTab(QWidget):
         self._project: Optional[Project] = None
         self._active_node_id: Optional[str] = None
         self._eff: Optional[EffectiveCatalog] = None
+        self._material_service: Optional[MaterialService] = None
         self._node_options: List[NodeOption] = []
         self._node_options_by_id: Dict[str, NodeOption] = {}
 
@@ -61,7 +63,7 @@ class CircuitsTab(QWidget):
 
         self.tbl = QTableWidget(0, 8)
         self.tbl.setHorizontalHeaderLabels([
-            'Name', 'Service', 'CableRef', 'Qty', 'Origen', 'Destino', 'Estado', 'CircuitId'
+            'Name', 'Service', 'Cable', 'Qty', 'Origen', 'Destino', 'Estado', 'CircuitId'
         ])
         self.tbl.itemChanged.connect(self._on_item_changed)
         root.addWidget(self.tbl, 1)
@@ -76,6 +78,10 @@ class CircuitsTab(QWidget):
 
     def set_effective_catalog(self, eff: Optional[EffectiveCatalog]) -> None:
         self._eff = eff
+
+    def set_material_service(self, material_service: Optional[MaterialService]) -> None:
+        self._material_service = material_service
+        self._refresh()
 
     def set_active_node(self, node) -> None:
         node_id = None
@@ -112,7 +118,12 @@ class CircuitsTab(QWidget):
             self.tbl.insertRow(r)
             self.tbl.setItem(r, self.COL_NAME, QTableWidgetItem(str(c.get('name', ''))))
             self.tbl.setItem(r, self.COL_SERVICE, QTableWidgetItem(str(c.get('service', 'power'))))
-            self.tbl.setItem(r, self.COL_CABLE, QTableWidgetItem(str(c.get('cable_ref', ''))))
+            cable_combo, missing_cable = self._build_cable_combo(
+                str(c.get('service', 'power')),
+                str(c.get('cable_ref', '')),
+            )
+            cable_combo.currentIndexChanged.connect(partial(self._on_cable_combo_changed, r))
+            self.tbl.setCellWidget(r, self.COL_CABLE, cable_combo)
             self.tbl.setItem(r, self.COL_QTY, QTableWidgetItem(str(c.get('qty', 1))))
 
             from_id = str(c.get('from_node') or '')
@@ -127,7 +138,7 @@ class CircuitsTab(QWidget):
             self.tbl.setCellWidget(r, self.COL_FROM, cmb_from)
             self.tbl.setCellWidget(r, self.COL_TO, cmb_to)
 
-            status = "Incompleto" if missing_from or missing_to or not from_id or not to_id else "OK"
+            status = self._row_status(missing_from, missing_to, missing_cable, from_id, to_id)
             status_item = QTableWidgetItem(status)
             status_item.setFlags(status_item.flags() & ~Qt.ItemIsEditable)
             self.tbl.setItem(r, self.COL_STATUS, status_item)
@@ -173,7 +184,7 @@ class CircuitsTab(QWidget):
     def _on_item_changed(self, item: QTableWidgetItem):
         if not self._project:
             return
-        if item.column() in (self.COL_STATUS, self.COL_ID):
+        if item.column() in (self.COL_STATUS, self.COL_ID, self.COL_CABLE):
             return
         row = item.row()
         cid = self.tbl.item(row, self.COL_ID).text().strip() if self.tbl.item(row, self.COL_ID) else ''
@@ -184,11 +195,13 @@ class CircuitsTab(QWidget):
             return
         c['name'] = self.tbl.item(row, self.COL_NAME).text() if self.tbl.item(row, self.COL_NAME) else c.get('name')
         c['service'] = self.tbl.item(row, self.COL_SERVICE).text() if self.tbl.item(row, self.COL_SERVICE) else c.get('service')
-        c['cable_ref'] = self.tbl.item(row, self.COL_CABLE).text() if self.tbl.item(row, self.COL_CABLE) else c.get('cable_ref')
         try:
             c['qty'] = int(self.tbl.item(row, self.COL_QTY).text())
         except Exception:
             pass
+        if item.column() == self.COL_SERVICE:
+            self._refresh_cable_combo(row)
+        self._update_row_status(row)
         self.project_changed.emit()
 
     def _generate_from_template(self):
@@ -249,6 +262,133 @@ class CircuitsTab(QWidget):
                 missing = True
         return combo, missing
 
+    def _build_cable_combo(self, service: str, selected_id: str):
+        combo = QComboBox()
+        combo.setProperty("valid_cable_ids", [])
+        combo.setProperty("no_matches", False)
+        combo.setProperty("missing_cable", False)
+        service_norm = str(service or "").strip().lower() or "power"
+        cables = self._list_cables_for_service(service_norm)
+        valid_ids = [str(c.get("id") or "") for c in cables if c.get("id")]
+        combo.addItem("(sin selecciÃ³n)", "")
+        for cable in cables:
+            cid = str(cable.get("id") or "")
+            name = str(cable.get("name") or cid)
+            combo.addItem(name, cid)
+        combo.setProperty("valid_cable_ids", valid_ids)
+
+        selected_id = str(selected_id or "").strip()
+        missing = False
+        if selected_id:
+            idx = combo.findData(selected_id)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            else:
+                label = self._label_for_missing_cable(selected_id, service_norm)
+                combo.insertItem(0, label, selected_id)
+                combo.setCurrentIndex(0)
+                missing = True
+
+        if not cables:
+            combo.setProperty("no_matches", True)
+            combo.setToolTip(f"Sin cables para servicio: {service_norm}")
+            missing = True
+
+        combo.setProperty("missing_cable", missing)
+        return combo, missing
+
+    def _label_for_missing_cable(self, cable_id: str, service_norm: str) -> str:
+        cable = self._find_cable_by_id(cable_id)
+        if not cable:
+            return f"(no encontrado) {cable_id}"
+        name = str(cable.get("name") or cable_id)
+        found_service = str(cable.get("service") or "").strip().lower()
+        if found_service and found_service != service_norm:
+            return f"(no coincide) {name}"
+        return f"(no encontrado) {name}"
+
+    def _find_cable_by_id(self, cable_id: str) -> Optional[Dict[str, object]]:
+        if not self._material_service:
+            return None
+        for cable in self._material_service.list_conductors(None):
+            if str(cable.get("id") or "").strip().lower() == str(cable_id or "").strip().lower():
+                return cable
+        return None
+
+    def _list_cables_for_service(self, service: str) -> List[Dict[str, object]]:
+        if not self._material_service:
+            return []
+        cables = self._material_service.list_conductors(service)
+        cables.sort(key=lambda c: str(c.get("name") or c.get("id") or ""))
+        return cables
+
+    def _on_cable_combo_changed(self, row: int) -> None:
+        if not self._project:
+            return
+        item_id = self.tbl.item(row, self.COL_ID)
+        if not item_id:
+            return
+        cid = item_id.text().strip()
+        if not cid:
+            return
+        c = next((x for x in (self._project.circuits.get('items') or []) if x.get('id') == cid), None)
+        if not c:
+            return
+        combo = self.tbl.cellWidget(row, self.COL_CABLE)
+        if not isinstance(combo, QComboBox):
+            return
+        cable_id = str(combo.currentData() or "")
+        c["cable_ref"] = cable_id
+        self._sync_cable_combo_warning(combo)
+        self._update_row_status(row)
+        self.project_changed.emit()
+
+    def _sync_cable_combo_warning(self, combo: QComboBox) -> None:
+        no_matches = bool(combo.property("no_matches"))
+        valid_ids = combo.property("valid_cable_ids") or []
+        current = combo.currentData()
+        if no_matches:
+            combo.setProperty("missing_cable", True)
+            return
+        if current and str(current) not in [str(v) for v in valid_ids]:
+            combo.setProperty("missing_cable", True)
+            return
+        combo.setProperty("missing_cable", False)
+
+    def _refresh_cable_combo(self, row: int) -> None:
+        if not self._project:
+            return
+        service_item = self.tbl.item(row, self.COL_SERVICE)
+        service = service_item.text() if service_item else "power"
+        item_id = self.tbl.item(row, self.COL_ID)
+        if not item_id:
+            return
+        cid = item_id.text().strip()
+        if not cid:
+            return
+        c = next((x for x in (self._project.circuits.get('items') or []) if x.get('id') == cid), None)
+        if not c:
+            return
+        selected = str(c.get("cable_ref") or "")
+        combo, missing = self._build_cable_combo(service, selected)
+        combo.currentIndexChanged.connect(partial(self._on_cable_combo_changed, row))
+        self.tbl.setCellWidget(row, self.COL_CABLE, combo)
+        self._update_row_status(row, cable_missing=missing)
+
+    def _row_status(
+        self,
+        missing_from: bool,
+        missing_to: bool,
+        missing_cable: bool,
+        from_id: str,
+        to_id: str,
+    ) -> str:
+        if missing_from or missing_to or not from_id or not to_id:
+            return "Incompleto"
+        if missing_cable:
+            return "Advertencia"
+        return "OK"
+
     def _on_node_combo_changed(self, row: int, field: str):
         if not self._project:
             return
@@ -269,7 +409,7 @@ class CircuitsTab(QWidget):
         self._update_row_status(row)
         self.project_changed.emit()
 
-    def _update_row_status(self, row: int) -> None:
+    def _update_row_status(self, row: int, cable_missing: Optional[bool] = None) -> None:
         item_id = self.tbl.item(row, self.COL_ID)
         if not item_id or not self._project:
             return
@@ -281,12 +421,11 @@ class CircuitsTab(QWidget):
             return
         from_id = str(c.get("from_node") or "")
         to_id = str(c.get("to_node") or "")
-        missing = False
-        if not from_id or from_id not in self._node_options_by_id:
-            missing = True
-        if not to_id or to_id not in self._node_options_by_id:
-            missing = True
-        status = "Incompleto" if missing else "OK"
+        missing_from = not from_id or from_id not in self._node_options_by_id
+        missing_to = not to_id or to_id not in self._node_options_by_id
+        if cable_missing is None:
+            cable_missing = self._row_has_cable_warning(row)
+        status = self._row_status(missing_from, missing_to, bool(cable_missing), from_id, to_id)
         self.tbl.blockSignals(True)
         status_item = self.tbl.item(row, self.COL_STATUS)
         if status_item is None:
@@ -296,3 +435,9 @@ class CircuitsTab(QWidget):
         else:
             status_item.setText(status)
         self.tbl.blockSignals(False)
+
+    def _row_has_cable_warning(self, row: int) -> bool:
+        combo = self.tbl.cellWidget(row, self.COL_CABLE)
+        if not isinstance(combo, QComboBox):
+            return False
+        return bool(combo.property("missing_cable"))

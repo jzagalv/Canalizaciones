@@ -1,0 +1,30 @@
+{
+  "project_version": "1.0",
+  "name": "Proyecto ejemplo - Canalizaciones",
+  "active_profile": "ss_conventional",
+  "libraries": [
+    {
+      "path": "libs/materiales_bd.lib",
+      "enabled": true,
+      "priority": 10
+    },
+    {
+      "path": "libs/plantillas_bd.lib",
+      "enabled": true,
+      "priority": 20
+    },
+    {
+      "path": "libs/equipment_library.lib",
+      "enabled": true,
+      "priority": 30
+    }
+  ],
+  "canvas": {
+    "nodes": [],
+    "edges": []
+  },
+  "circuits": {
+    "source": "generated_from_templates",
+    "items": []
+  }
+}

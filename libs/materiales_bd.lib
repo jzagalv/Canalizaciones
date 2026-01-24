@@ -1,0 +1,1443 @@
+{
+  "schema_version": "1.0",
+  "kind": "material_library",
+  "meta": {
+    "name": "Materiales (extraidos desde BD.xlsx)",
+    "created": "2026-01-19",
+    "source": "BD.xlsx"
+  },
+  "conductors": [
+    {
+      "id": "cond_3c_x_14_awg_sin_pantalla",
+      "name": "3c x 14 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 9.5,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_12_awg_sin_pantalla",
+      "name": "3c x 12 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 10.82,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_10_awg_sin_pantalla",
+      "name": "3c x 10 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 12.35,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_8_awg_sin_pantalla",
+      "name": "3c x 8 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 14.05,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_6_awg_sin_pantalla",
+      "name": "3c x 6 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 17.2,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_4_awg_sin_pantalla",
+      "name": "3c x 4 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 21.61,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_2_awg_sin_pantalla",
+      "name": "3c x 2 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 25.44,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_1_awg_sin_pantalla",
+      "name": "3c x 1 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 29.3,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_1_0_awg_sin_pantalla",
+      "name": "3c x 1/0 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 31.91,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_2_0_awg_sin_pantalla",
+      "name": "3c x 2/0 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 34.06,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_14_awg_sin_pantalla",
+      "name": "4c x 14 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 10.38,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_12_awg_sin_pantalla",
+      "name": "4c x 12 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 11.81,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_10_awg_sin_pantalla",
+      "name": "4c x 10 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 13.53,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_8_awg_sin_pantalla",
+      "name": "4c x 8 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 15.64,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_6_awg_sin_pantalla",
+      "name": "4c x 6 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 19.1,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_4_awg_sin_pantalla",
+      "name": "4c x 4 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 24.08,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_2_awg_sin_pantalla",
+      "name": "4c x 2 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 28.34,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_1_awg_sin_pantalla",
+      "name": "4c x 1 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 32.68,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_1_0_awg_sin_pantalla",
+      "name": "4c x 1/0 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 35.54,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_2_0_awg_sin_pantalla",
+      "name": "4c x 2/0 AWG - Sin Pantalla",
+      "service": "power",
+      "outer_diameter_mm": 38.12,
+      "manufacturer": "Covisa",
+      "model": "XCM (RV-K)",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_2c_x_10_awg_apantallado",
+      "name": "2c x 10 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 14.5,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_2c_x_12_awg_apantallado",
+      "name": "2c x 12 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 13.24,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_2c_x_14_awg_apantallado",
+      "name": "2c x 14 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 12.3,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_2c_x_16_awg_apantallado",
+      "name": "2c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 11.54,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_10_awg_apantallado",
+      "name": "3c x 10 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 15.2,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_12_awg_apantallado",
+      "name": "3c x 12 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 13.84,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_14_awg_apantallado",
+      "name": "3c x 14 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 12.82,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_3c_x_16_awg_apantallado",
+      "name": "3c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 12.0,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_8_awg_apantallado",
+      "name": "4c x 8 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 19.54,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_10_awg_apantallado",
+      "name": "4c x 10 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 16.33,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_12_awg_apantallado",
+      "name": "4c x 12 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 14.8,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_14_awg_apantallado",
+      "name": "4c x 14 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 13.67,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4c_x_16_awg_apantallado",
+      "name": "4c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 12.75,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_5c_x_8_awg_apantallado",
+      "name": "5c x 8 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 17.55,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_5c_x_10_awg_apantallado",
+      "name": "5c x 10 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 17.55,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_5c_x_12_awg_apantallado",
+      "name": "5c x 12 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 15.84,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_5c_x_14_awg_apantallado",
+      "name": "5c x 14 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 14.58,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_5c_x_16_awg_apantallado",
+      "name": "5c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 13.55,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_7c_x_10_awg_apantallado",
+      "name": "7c x 10 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 18.85,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_7c_x_12_awg_apantallado",
+      "name": "7c x 12 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 16.96,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_7c_x_14_awg_apantallado",
+      "name": "7c x 14 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 15.55,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_7c_x_16_awg_apantallado",
+      "name": "7c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 14.41,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_9c_x_10_awg_apantallado",
+      "name": "9c x 10 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 23.2,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_9c_x_12_awg_apantallado",
+      "name": "9c x 12 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 20.68,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_9c_x_14_awg_apantallado",
+      "name": "9c x 14 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 18.8,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_9c_x_16_awg_apantallado",
+      "name": "9c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 17.28,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_12c_x_10_awg_apantallado",
+      "name": "12c x 10 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 24.0,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_12c_x_12_awg_apantallado",
+      "name": "12c x 12 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 21.28,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_12c_x_14_awg_apantallado",
+      "name": "12c x 14 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 19.32,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_12c_x_16_awg_apantallado",
+      "name": "12c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 17.34,
+      "manufacturer": "Covisa",
+      "model": "XCCT Apantallado",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_4p_x_2c_x_16_awg_apantallado",
+      "name": "4p x 2c x 16 AWG - Apantallado",
+      "service": "power",
+      "outer_diameter_mm": 17.27,
+      "manufacturer": "Belden",
+      "model": "PVC",
+      "tags": [
+        "AWG"
+      ]
+    },
+    {
+      "id": "cond_cable_de_red_stp",
+      "name": "Cable de Red STP",
+      "service": "power",
+      "outer_diameter_mm": 7.0,
+      "manufacturer": "Generico",
+      "model": "PVC",
+      "tags": [
+        "mm2"
+      ]
+    }
+  ],
+  "containments": {
+    "ducts": [
+      {
+        "id": "duct_c_a_g_1_2",
+        "name": "c.a.g. DN 1/2\" (ID 16.02mm)",
+        "shape": "circular",
+        "nominal": "1/2\"",
+        "inner_diameter_mm": 16.02,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_3_4",
+        "name": "c.a.g. DN 3/4\" (ID 21.259999999999998mm)",
+        "shape": "circular",
+        "nominal": "3/4\"",
+        "inner_diameter_mm": 21.259999999999998,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_1",
+        "name": "c.a.g. DN 1\" (ID 27mm)",
+        "shape": "circular",
+        "nominal": "1\"",
+        "inner_diameter_mm": 27.0,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_1_1_4",
+        "name": "c.a.g. DN 1  1/4\" (ID 35.440000000000005mm)",
+        "shape": "circular",
+        "nominal": "1  1/4\"",
+        "inner_diameter_mm": 35.440000000000005,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_1_1_2",
+        "name": "c.a.g. DN 1  1/2\" (ID 41.28mm)",
+        "shape": "circular",
+        "nominal": "1  1/2\"",
+        "inner_diameter_mm": 41.28,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_2",
+        "name": "c.a.g. DN 2\" (ID 52.879999999999995mm)",
+        "shape": "circular",
+        "nominal": "2\"",
+        "inner_diameter_mm": 52.879999999999995,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_2_1_2",
+        "name": "c.a.g. DN 2  1/2\" (ID 63.2mm)",
+        "shape": "circular",
+        "nominal": "2  1/2\"",
+        "inner_diameter_mm": 63.2,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_3",
+        "name": "c.a.g. DN 3\" (ID 78.48mm)",
+        "shape": "circular",
+        "nominal": "3\"",
+        "inner_diameter_mm": 78.48,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_4",
+        "name": "c.a.g. DN 4\" (ID 102.86mm)",
+        "shape": "circular",
+        "nominal": "4\"",
+        "inner_diameter_mm": 102.86,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_6",
+        "name": "c.a.g. DN 6\" (ID 154.78mm)",
+        "shape": "circular",
+        "nominal": "6\"",
+        "inner_diameter_mm": 154.78,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "ANSI C80.1 (c.a.g)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_20_mm",
+        "name": "c.a.g. DN 20 mm (ID 15mm)",
+        "shape": "circular",
+        "nominal": "20 mm",
+        "inner_diameter_mm": 15.0,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "IEC 61386-21 (c.a.g.)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_25_mm",
+        "name": "c.a.g. DN 25 mm (ID 20mm)",
+        "shape": "circular",
+        "nominal": "25 mm",
+        "inner_diameter_mm": 20.0,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "IEC 61386-21 (c.a.g.)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_32_mm",
+        "name": "c.a.g. DN 32 mm (ID 26mm)",
+        "shape": "circular",
+        "nominal": "32 mm",
+        "inner_diameter_mm": 26.0,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "IEC 61386-21 (c.a.g.)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_40_mm",
+        "name": "c.a.g. DN 40 mm (ID 33mm)",
+        "shape": "circular",
+        "nominal": "40 mm",
+        "inner_diameter_mm": 33.0,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "IEC 61386-21 (c.a.g.)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_c_a_g_50_mm",
+        "name": "c.a.g. DN 50 mm (ID 43mm)",
+        "shape": "circular",
+        "nominal": "50 mm",
+        "inner_diameter_mm": 43.0,
+        "max_fill_percent": 40,
+        "material": "c.a.g.",
+        "standard": "IEC 61386-21 (c.a.g.)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_20_mm",
+        "name": "PVC DN 20 mm (ID 15.6mm)",
+        "shape": "circular",
+        "nominal": "20 mm",
+        "inner_diameter_mm": 15.6,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_25_mm",
+        "name": "PVC DN 25 mm (ID 20.8mm)",
+        "shape": "circular",
+        "nominal": "25 mm",
+        "inner_diameter_mm": 20.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_32_mm",
+        "name": "PVC DN 32 mm (ID 26.499999999999996mm)",
+        "shape": "circular",
+        "nominal": "32 mm",
+        "inner_diameter_mm": 26.499999999999996,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_40_mm",
+        "name": "PVC DN 40 mm (ID 34.8mm)",
+        "shape": "circular",
+        "nominal": "40 mm",
+        "inner_diameter_mm": 34.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_50_mm",
+        "name": "PVC DN 50 mm (ID 40.7mm)",
+        "shape": "circular",
+        "nominal": "50 mm",
+        "inner_diameter_mm": 40.7,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_63_mm",
+        "name": "PVC DN 63 mm (ID 52.400000000000006mm)",
+        "shape": "circular",
+        "nominal": "63 mm",
+        "inner_diameter_mm": 52.400000000000006,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_75_mm",
+        "name": "PVC DN 75 mm (ID 62.4mm)",
+        "shape": "circular",
+        "nominal": "75 mm",
+        "inner_diameter_mm": 62.4,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_90_mm",
+        "name": "PVC DN 90 mm (ID 77.7mm)",
+        "shape": "circular",
+        "nominal": "90 mm",
+        "inner_diameter_mm": 77.7,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_110_mm",
+        "name": "PVC DN 110 mm (ID 102.1mm)",
+        "shape": "circular",
+        "nominal": "110 mm",
+        "inner_diameter_mm": 102.1,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_140_mm",
+        "name": "PVC DN 140 mm (ID 127.8mm)",
+        "shape": "circular",
+        "nominal": "140 mm",
+        "inner_diameter_mm": 127.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_160_mm",
+        "name": "PVC DN 160 mm (ID 153.8mm)",
+        "shape": "circular",
+        "nominal": "160 mm",
+        "inner_diameter_mm": 153.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_20_mm",
+        "name": "PVC DN 20 mm (ID 13.799999999999999mm)",
+        "shape": "circular",
+        "nominal": "20 mm",
+        "inner_diameter_mm": 13.799999999999999,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_25_mm",
+        "name": "PVC DN 25 mm (ID 18.8mm)",
+        "shape": "circular",
+        "nominal": "25 mm",
+        "inner_diameter_mm": 18.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_32_mm",
+        "name": "PVC DN 32 mm (ID 24.299999999999997mm)",
+        "shape": "circular",
+        "nominal": "32 mm",
+        "inner_diameter_mm": 24.299999999999997,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_40_mm",
+        "name": "PVC DN 40 mm (ID 32.2mm)",
+        "shape": "circular",
+        "nominal": "40 mm",
+        "inner_diameter_mm": 32.2,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_50_mm",
+        "name": "PVC DN 50 mm (ID 37.900000000000006mm)",
+        "shape": "circular",
+        "nominal": "50 mm",
+        "inner_diameter_mm": 37.900000000000006,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_63_mm",
+        "name": "PVC DN 63 mm (ID 49.2mm)",
+        "shape": "circular",
+        "nominal": "63 mm",
+        "inner_diameter_mm": 49.2,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_75_mm",
+        "name": "PVC DN 75 mm (ID 58.8mm)",
+        "shape": "circular",
+        "nominal": "75 mm",
+        "inner_diameter_mm": 58.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_90_mm",
+        "name": "PVC DN 90 mm (ID 73.5mm)",
+        "shape": "circular",
+        "nominal": "90 mm",
+        "inner_diameter_mm": 73.5,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_110_mm",
+        "name": "PVC DN 110 mm (ID 96.89999999999999mm)",
+        "shape": "circular",
+        "nominal": "110 mm",
+        "inner_diameter_mm": 96.89999999999999,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_140_mm",
+        "name": "PVC DN 140 mm (ID 122mm)",
+        "shape": "circular",
+        "nominal": "140 mm",
+        "inner_diameter_mm": 122.0,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_160_mm",
+        "name": "PVC DN 160 mm (ID 146mm)",
+        "shape": "circular",
+        "nominal": "160 mm",
+        "inner_diameter_mm": 146.0,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1_2",
+        "name": "PVC DN 1/2\" (ID 15.6mm)",
+        "shape": "circular",
+        "nominal": "1/2\"",
+        "inner_diameter_mm": 15.6,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_3_4",
+        "name": "PVC DN 3/4\" (ID 20.8mm)",
+        "shape": "circular",
+        "nominal": "3/4\"",
+        "inner_diameter_mm": 20.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1",
+        "name": "PVC DN 1\" (ID 26.499999999999996mm)",
+        "shape": "circular",
+        "nominal": "1\"",
+        "inner_diameter_mm": 26.499999999999996,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1_1_4",
+        "name": "PVC DN 1  1/4\" (ID 34.8mm)",
+        "shape": "circular",
+        "nominal": "1  1/4\"",
+        "inner_diameter_mm": 34.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1_1_2",
+        "name": "PVC DN 1  1/2\" (ID 40.7mm)",
+        "shape": "circular",
+        "nominal": "1  1/2\"",
+        "inner_diameter_mm": 40.7,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_2",
+        "name": "PVC DN 2\" (ID 52.400000000000006mm)",
+        "shape": "circular",
+        "nominal": "2\"",
+        "inner_diameter_mm": 52.400000000000006,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_2_1_2",
+        "name": "PVC DN 2  1/2\" (ID 62.4mm)",
+        "shape": "circular",
+        "nominal": "2  1/2\"",
+        "inner_diameter_mm": 62.4,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_3",
+        "name": "PVC DN 3\" (ID 77.7mm)",
+        "shape": "circular",
+        "nominal": "3\"",
+        "inner_diameter_mm": 77.7,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_4",
+        "name": "PVC DN 4\" (ID 102.1mm)",
+        "shape": "circular",
+        "nominal": "4\"",
+        "inner_diameter_mm": 102.1,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_5",
+        "name": "PVC DN 5\" (ID 127.8mm)",
+        "shape": "circular",
+        "nominal": "5\"",
+        "inner_diameter_mm": 127.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_6",
+        "name": "PVC DN 6\" (ID 153.8mm)",
+        "shape": "circular",
+        "nominal": "6\"",
+        "inner_diameter_mm": 153.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 40 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_8",
+        "name": "PVC DN 8\" (ID 202.29999999999998mm)",
+        "shape": "circular",
+        "nominal": "8\"",
+        "inner_diameter_mm": 202.29999999999998,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1_2",
+        "name": "PVC DN 1/2\" (ID 13.799999999999999mm)",
+        "shape": "circular",
+        "nominal": "1/2\"",
+        "inner_diameter_mm": 13.799999999999999,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_3_4",
+        "name": "PVC DN 3/4\" (ID 18.8mm)",
+        "shape": "circular",
+        "nominal": "3/4\"",
+        "inner_diameter_mm": 18.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1",
+        "name": "PVC DN 1\" (ID 24.299999999999997mm)",
+        "shape": "circular",
+        "nominal": "1\"",
+        "inner_diameter_mm": 24.299999999999997,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1_1_4",
+        "name": "PVC DN 1  1/4\" (ID 32.2mm)",
+        "shape": "circular",
+        "nominal": "1  1/4\"",
+        "inner_diameter_mm": 32.2,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_1_1_2",
+        "name": "PVC DN 1  1/2\" (ID 37.900000000000006mm)",
+        "shape": "circular",
+        "nominal": "1  1/2\"",
+        "inner_diameter_mm": 37.900000000000006,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_2",
+        "name": "PVC DN 2\" (ID 49.2mm)",
+        "shape": "circular",
+        "nominal": "2\"",
+        "inner_diameter_mm": 49.2,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_2_1_2",
+        "name": "PVC DN 2  1/2\" (ID 58.8mm)",
+        "shape": "circular",
+        "nominal": "2  1/2\"",
+        "inner_diameter_mm": 58.8,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_3",
+        "name": "PVC DN 3\" (ID 73.5mm)",
+        "shape": "circular",
+        "nominal": "3\"",
+        "inner_diameter_mm": 73.5,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_4",
+        "name": "PVC DN 4\" (ID 98.1mm)",
+        "shape": "circular",
+        "nominal": "4\"",
+        "inner_diameter_mm": 98.1,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_5",
+        "name": "PVC DN 5\" (ID 122mm)",
+        "shape": "circular",
+        "nominal": "5\"",
+        "inner_diameter_mm": 122.0,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_6",
+        "name": "PVC DN 6\" (ID 146mm)",
+        "shape": "circular",
+        "nominal": "6\"",
+        "inner_diameter_mm": 146.0,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      },
+      {
+        "id": "duct_pvc_8",
+        "name": "PVC DN 8\" (ID 193.29999999999998mm)",
+        "shape": "circular",
+        "nominal": "8\"",
+        "inner_diameter_mm": 193.29999999999998,
+        "max_fill_percent": 40,
+        "material": "PVC",
+        "standard": "Schedule 80 (PVC)",
+        "manufacturer": null,
+        "tags": []
+      }
+    ],
+    "epc": [],
+    "bpc": [],
+    "trays": [
+      {
+        "id": "tray_100x100_mm_100x100",
+        "name": "100x100 mm 100x100",
+        "shape": "rectangular",
+        "inner_width_mm": 100.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_150x100_mm_150x100",
+        "name": "150x100 mm 150x100",
+        "shape": "rectangular",
+        "inner_width_mm": 150.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_200x100_mm_200x100",
+        "name": "200x100 mm 200x100",
+        "shape": "rectangular",
+        "inner_width_mm": 200.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_300x100_mm_300x100",
+        "name": "300x100 mm 300x100",
+        "shape": "rectangular",
+        "inner_width_mm": 300.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_400x100_mm_400x100",
+        "name": "400x100 mm 400x100",
+        "shape": "rectangular",
+        "inner_width_mm": 400.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_450x100_mm_450x100",
+        "name": "450x100 mm 450x100",
+        "shape": "rectangular",
+        "inner_width_mm": 450.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_500x100_mm_500x100",
+        "name": "500x100 mm 500x100",
+        "shape": "rectangular",
+        "inner_width_mm": 500.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      },
+      {
+        "id": "tray_600x100_mm_600x100",
+        "name": "600x100 mm 600x100",
+        "shape": "rectangular",
+        "inner_width_mm": 600.0,
+        "inner_height_mm": 100.0,
+        "max_fill_percent": 50,
+        "max_layers": 2,
+        "material": null,
+        "tags": []
+      }
+    ]
+  },
+  "rules": {
+    "separation": [
+      {
+        "id": "sep_power_control",
+        "if_services": [
+          "power",
+          "control"
+        ],
+        "requires": "separate_containment",
+        "notes": "Criterio base: no mezclar fuerza y control en el mismo contenedor."
+      },
+      {
+        "id": "sep_comms",
+        "if_services": [
+          "comms"
+        ],
+        "requires": "separate_containment",
+        "notes": "Criterio base: comunicaciones separadas."
+      }
+    ],
+    "defaults": {
+      "power": {
+        "max_fill_percent": 40
+      },
+      "control": {
+        "max_fill_percent": 40
+      },
+      "comms": {
+        "max_fill_percent": 30
+      }
+    }
+  }
+}

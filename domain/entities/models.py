@@ -22,7 +22,20 @@ class Project:
     active_template_path: str = ''
     active_installation_type: str = ''
     libraries: List[LibraryRef] = field(default_factory=list)
-    canvas: Dict = field(default_factory=lambda: {'nodes': [], 'edges': []})
+    canvas: Dict = field(default_factory=lambda: {
+        'nodes': [],
+        'edges': [],
+        'background': {
+            'path': '',
+            'opacity': 1.0,
+            'locked': True,
+            'pos': [0.0, 0.0],
+            'scale': 1.0,
+            'image_data': '',
+            'image_format': '',
+        },
+        'view': {},
+    })
     circuits: Dict = field(default_factory=lambda: {'source': 'none', 'items': []})
     primary_equipment: List[Dict] = field(default_factory=list)
 

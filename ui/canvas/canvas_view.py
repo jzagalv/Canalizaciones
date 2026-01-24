@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import json
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal, QRect
 from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QGraphicsView
 
 
 class CanvasView(QGraphicsView):
     """QGraphicsView wrapper with zoom and drag&drop support."""
+
+    view_state_changed = pyqtSignal(dict)
 
     def __init__(self, scene):
         super().__init__(scene)
@@ -18,6 +20,7 @@ class CanvasView(QGraphicsView):
         self.setAcceptDrops(True)
         self.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.setFocusPolicy(Qt.StrongFocus)
         self._panning = False
         self._pan_start = None
         self._default_drag_mode = self.dragMode()
@@ -33,6 +36,7 @@ class CanvasView(QGraphicsView):
         elif next_zoom > max_zoom:
             factor = max_zoom / current_zoom
         self.scale(factor, factor)
+        self._emit_view_state()
         event.accept()
 
     def mousePressEvent(self, event):
@@ -62,6 +66,7 @@ class CanvasView(QGraphicsView):
             self._pan_start = None
             self.setCursor(Qt.ArrowCursor)
             self.setDragMode(self._default_drag_mode)
+            self._emit_view_state()
             event.accept()
             return
         super().mouseReleaseEvent(event)
@@ -106,3 +111,43 @@ class CanvasView(QGraphicsView):
                 # Fallback: let base class handle
                 pass
         super().dropEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+            sc = self.scene()
+            if hasattr(sc, "delete_selected"):
+                sc.delete_selected()
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._emit_view_state()
+
+    def set_view_state(self, state: dict) -> None:
+        scale = float(state.get("scale", 1.0) or 1.0)
+        center = state.get("center") or None
+        if scale <= 0:
+            scale = 1.0
+        self.resetTransform()
+        self.scale(scale, scale)
+        if isinstance(center, (list, tuple)) and len(center) >= 2:
+            self.centerOn(float(center[0]), float(center[1]))
+        else:
+            self.centerOn(self.sceneRect().center())
+        self._emit_view_state()
+
+    def refresh_view_state(self) -> None:
+        self._emit_view_state()
+
+    def _emit_view_state(self) -> None:
+        rect = self.viewport().rect() if isinstance(self.viewport().rect(), QRect) else None
+        if rect is None or rect.isNull():
+            return
+        center = self.mapToScene(rect.center())
+        payload = {
+            "scale": float(self.transform().m11()),
+            "center": [float(center.x()), float(center.y())],
+        }
+        self.view_state_changed.emit(payload)

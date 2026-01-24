@@ -40,6 +40,7 @@ class CanvasTab(QWidget):
 
         self._selected_edge_id: Optional[str] = None
         self._material: Dict = {}
+        self._suspend_view_updates = False
 
         self._build_ui()
 
@@ -102,6 +103,7 @@ class CanvasTab(QWidget):
         splitter.addWidget(self.library_panel)
 
         self.view = CanvasView(self.scene)
+        self.view.view_state_changed.connect(self._on_view_state_changed)
         splitter.addWidget(self.view)
 
         # ---------------- Properties panel ----------------
@@ -158,7 +160,9 @@ class CanvasTab(QWidget):
     def set_project(self, project: Project) -> None:
         self._project = project
         self.scene.set_project_canvas(project.canvas)
+        self._project.canvas = self.scene.get_project_canvas()
         self._sync_bg_controls_from_model()
+        self._apply_view_state_from_model()
 
     def set_edge_statuses(self, solutions: Dict[str, Dict]) -> None:
         # solutions: edge_id -> {status, badge}
@@ -255,6 +259,28 @@ class CanvasTab(QWidget):
             self.cmb_run_catalog.addItem(i)
         self.cmb_run_catalog.blockSignals(False)
 
+    def _on_view_state_changed(self, state: Dict) -> None:
+        if self._suspend_view_updates or not self._project:
+            return
+        self._project.canvas.setdefault("view", {})
+        self._project.canvas["view"] = {
+            "scale": float(state.get("scale", 1.0) or 1.0),
+            "center": list(state.get("center") or [0.0, 0.0]),
+        }
+        self.project_changed.emit()
+
+    def _apply_view_state_from_model(self) -> None:
+        if not self._project:
+            return
+        view_state = (self._project.canvas or {}).get("view") or {}
+        if not view_state:
+            return
+        self._suspend_view_updates = True
+        try:
+            self.view.set_view_state(view_state)
+        finally:
+            self._suspend_view_updates = False
+
     # ---------------- Background plan ----------------
     def _sync_bg_controls_from_model(self):
         bg = (self._project.canvas.get("background") or {}) if self._project else {}
@@ -291,6 +317,7 @@ class CanvasTab(QWidget):
         if bg_rect is None:
             return
         self.view.fitInView(bg_rect, Qt.KeepAspectRatio)
+        self.view.refresh_view_state()
 
     def _toggle_bg_lock(self, locked: bool):
         self.btn_lock_bg.setText("Fondo bloqueado" if locked else "Fondo desbloqueado")

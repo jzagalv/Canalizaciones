@@ -6,7 +6,20 @@ from typing import Any, Dict, List, Optional
 
 from PyQt5.QtCore import Qt, QMimeData, QPoint
 from PyQt5.QtGui import QDrag, QFontMetrics, QPainter, QPixmap, QColor, QPen, QBrush
-from PyQt5.QtWidgets import QLineEdit, QLabel, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class LibraryTree(QTreeWidget):
@@ -80,6 +93,10 @@ class LibraryPanel(QWidget):
 
         root.addWidget(QLabel("Biblioteca"))
 
+        self.btn_add_equipment = QPushButton("Agregar Equipo/Armario")
+        self.btn_add_equipment.clicked.connect(self._open_add_equipment_dialog)
+        root.addWidget(self.btn_add_equipment)
+
         self.search = QLineEdit()
         self.search.setPlaceholderText("Buscar...")
         self.search.textChanged.connect(self._apply_filter)
@@ -150,3 +167,78 @@ class LibraryPanel(QWidget):
                 child.setHidden(not visible)
                 any_visible = any_visible or visible
             top.setHidden(bool(needle) and not any_visible)
+
+    def _find_section_item(self, title: str) -> Optional[QTreeWidgetItem]:
+        for i in range(self.tree.topLevelItemCount()):
+            top = self.tree.topLevelItem(i)
+            if top.text(0) == title:
+                return top
+        return None
+
+    def _open_add_equipment_dialog(self) -> None:
+        dlg = AddEquipmentDialog(self)
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        name, kind = dlg.get_values()
+        if not name:
+            return
+
+        parent = self._find_section_item("Equipos")
+        if parent is None:
+            parent = QTreeWidgetItem(["Equipos"])
+            parent.setFlags(parent.flags() & ~Qt.ItemIsDragEnabled)
+            self.tree.addTopLevelItem(parent)
+
+        needle = name.strip().lower()
+        for i in range(parent.childCount()):
+            if parent.child(i).text(0).strip().lower() == needle:
+                QMessageBox.warning(self, "Equipos", f"Ya existe un equipo llamado '{name}'.")
+                return
+
+        payload: Dict[str, Any] = {"kind": "equipment", "type": kind, "label": name}
+
+        child = QTreeWidgetItem([name])
+        child.setData(0, Qt.UserRole, payload)
+        child.setData(0, Qt.UserRole + 1, f"{name} {kind} equipment")
+        child.setFlags(child.flags() | Qt.ItemIsDragEnabled)
+        parent.addChild(child)
+        parent.setExpanded(True)
+
+        self._apply_filter(self.search.text())
+        self.tree.setCurrentItem(child)
+        self.tree.scrollToItem(child)
+
+
+class AddEquipmentDialog(QDialog):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Agregar Equipo/Armario")
+
+        root = QVBoxLayout(self)
+        form = QFormLayout()
+        root.addLayout(form)
+
+        self.edt_name = QLineEdit()
+        form.addRow("Nombre:", self.edt_name)
+
+        self.cmb_type = QComboBox()
+        self.cmb_type.addItems(["Equipo", "Armario"])
+        form.addRow("Tipo:", self.cmb_type)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        root.addWidget(buttons)
+
+    def _on_accept(self) -> None:
+        if not self.edt_name.text().strip():
+            QMessageBox.warning(self, "Equipos", "El nombre es obligatorio.")
+            return
+        self.accept()
+
+    def get_values(self) -> tuple[str, str]:
+        name = self.edt_name.text().strip()
+        type_label = self.cmb_type.currentText().strip()
+        kind = "equipment" if type_label == "Equipo" else "cabinet"
+        return name, kind

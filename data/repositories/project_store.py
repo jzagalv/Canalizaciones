@@ -33,7 +33,20 @@ def load_project(path: str) -> Project:
         active_template_path=data.get('active_template_path',''),
         active_installation_type=data.get('active_installation_type',''),
         libraries=libs,
-        canvas=data.get('canvas') or {'nodes': [], 'edges': []},
+        canvas=data.get('canvas') or {
+            'nodes': [],
+            'edges': [],
+            'background': {
+                'path': '',
+                'opacity': 1.0,
+                'locked': True,
+                'pos': [0.0, 0.0],
+                'scale': 1.0,
+                'image_data': '',
+                'image_format': '',
+            },
+            'view': {},
+        },
         circuits=data.get('circuits') or {'source': 'none', 'items': []},
         primary_equipment=data.get('primary_equipment') or [],
     )

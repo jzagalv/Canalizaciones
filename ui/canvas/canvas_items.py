@@ -11,10 +11,10 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from PyQt5.QtCore import QPointF, Qt, pyqtSignal, QObject, QLineF
-from PyQt5.QtGui import QBrush, QPen, QColor
+from PyQt5.QtCore import QPointF, Qt, pyqtSignal, QObject, QLineF, QRectF
+from PyQt5.QtGui import QBrush, QPen, QColor, QPainter
 from PyQt5.QtWidgets import (
-    QGraphicsEllipseItem,
+    QGraphicsItem,
     QGraphicsLineItem,
     QGraphicsSimpleTextItem,
     QGraphicsTextItem,
@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import (
 @dataclass
 class NodeData:
     id: str
-    kind: str  # 'equipment' | 'chamber' | 'junction'
+    kind: str  # 'equipment' | 'cabinet' | 'chamber' | 'junction'
     name: str
     x: float
     y: float
@@ -35,11 +35,11 @@ class NodeItemSignals(QObject):
     moved = pyqtSignal(str, float, float)  # id, x, y
 
 
-class NodeItem(QGraphicsEllipseItem):
+class NodeItem(QGraphicsItem):
     """Draggable node representing an equipment/chamber/junction."""
 
     def __init__(self, data: NodeData, radius: float = 18.0):
-        super().__init__(-radius, -radius, 2 * radius, 2 * radius)
+        super().__init__()
         self.data = data
         self.radius = radius
         self.signals = NodeItemSignals()
@@ -48,17 +48,6 @@ class NodeItem(QGraphicsEllipseItem):
         self.setFlag(self.ItemIsSelectable, True)
         self.setFlag(self.ItemSendsGeometryChanges, True)
         self.setZValue(10)
-
-        # Style
-        if data.kind == "equipment":
-            self.setBrush(QBrush(Qt.white))
-            self.setPen(QPen(Qt.black, 2))
-        elif data.kind == "chamber":
-            self.setBrush(QBrush(Qt.lightGray))
-            self.setPen(QPen(Qt.black, 2))
-        else:  # junction or other
-            self.setBrush(QBrush(QColor("#e5e7eb")))
-            self.setPen(QPen(Qt.black, 2))
 
         self.label = QGraphicsSimpleTextItem(data.name, self)
         self.label.setFlag(self.label.ItemIgnoresTransformations, True)
@@ -78,11 +67,42 @@ class NodeItem(QGraphicsEllipseItem):
     def name(self) -> str:
         return self.data.name
 
+    def boundingRect(self) -> QRectF:
+        r = float(self.radius)
+        return QRectF(-r, -r, 2 * r, 2 * r)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:
+        rect = self.boundingRect()
+        selected = self.isSelected()
+        pen = QPen(QColor("#3b82f6"), 3) if selected else QPen(Qt.black, 2)
+
+        if self.data.kind == "equipment":
+            base_color = QColor(Qt.white)
+        elif self.data.kind == "cabinet":
+            base_color = QColor(173, 216, 230)
+        elif self.data.kind == "chamber":
+            base_color = QColor(Qt.lightGray)
+        else:  # junction or other
+            base_color = QColor("#e5e7eb")
+        if selected:
+            base_color = base_color.lighter(115)
+        brush = QBrush(base_color)
+
+        painter.setPen(pen)
+        painter.setBrush(brush)
+
+        if self.data.kind == "cabinet":
+            painter.drawRect(rect)
+        else:
+            painter.drawEllipse(rect)
+
     def itemChange(self, change, value):
         if change == self.ItemPositionHasChanged:
             p: QPointF = value
             self.data.x, self.data.y = float(p.x()), float(p.y())
             self.signals.moved.emit(self.data.id, self.data.x, self.data.y)
+        elif change == self.ItemSelectedHasChanged:
+            self.update()
         return super().itemChange(change, value)
 
 
@@ -168,10 +188,10 @@ class EdgeItem(QGraphicsLineItem):
 
     def _apply_style(self) -> None:
         pen = QPen(QColor("#6b7280"), 2)
-        if self.isSelected():
-            pen = QPen(QColor("#3b82f6"), 3)
         if self.status == "warn":
             pen = QPen(QColor("#f59e0b"), 3)
         elif self.status == "error":
             pen = QPen(QColor("#ef4444"), 3)
+        if self.isSelected():
+            pen = QPen(QColor("#3b82f6"), max(4, pen.width() + 1))
         self.setPen(pen)

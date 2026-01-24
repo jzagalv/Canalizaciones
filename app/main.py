@@ -1,38 +1,31 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
-# Ensure project root is on sys.path (classic layout)
-ROOT_DIR = Path(__file__).resolve().parent.parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-import os
-import sys
-from pathlib import Path
+if __name__ == "__main__" and __package__ is None:
+    repo_root = Path(__file__).resolve().parent.parent
+    cmd = [sys.executable, "-m", "app.main"]
+    raise SystemExit(subprocess.call(cmd, cwd=str(repo_root)))
 
 from PyQt5.QtWidgets import QApplication
 
+from infra.persistence.app_config import AppConfig
 from ui.main_window import MainWindow
-
-
-def _load_qss(app: QApplication, qss_path: Path) -> None:
-    try:
-        app.setStyleSheet(qss_path.read_text(encoding='utf-8'))
-    except Exception:
-        pass
+from ui.theme_manager import apply_theme
 
 
 def main() -> int:
     app = QApplication(sys.argv)
 
-    app_dir = Path(os.path.dirname(os.path.abspath(__file__))).parent
-    qss = app_dir / 'ui' / 'styles' / 'theme.qss'
-    _load_qss(app, qss)
+    app_dir = Path(__file__).resolve().parent.parent
+    app_config = AppConfig.load(app_dir)
+    theme = app_config.theme
+    apply_theme(app, app_dir, theme)
 
-    w = MainWindow(str(app_dir))
+    w = MainWindow(app_dir, app_config)
     w.show()
     return app.exec_()
 

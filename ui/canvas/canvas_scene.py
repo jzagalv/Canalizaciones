@@ -11,6 +11,8 @@ Design goals:
 - Project.canvas remains the single source of truth for persistence.
 """
 
+import base64
+from pathlib import Path
 from typing import Dict, Optional
 
 from PyQt5.QtCore import QObject, pyqtSignal, Qt, QRectF
@@ -34,7 +36,19 @@ class CanvasScene(QGraphicsScene):
         super().__init__()
         self.signals = CanvasSceneSignals()
 
-        self._project_canvas: Dict = {"nodes": [], "edges": [], "background": {"path": "", "opacity": 1.0, "locked": True}}
+        self._project_canvas: Dict = {
+            "nodes": [],
+            "edges": [],
+            "background": {
+                "path": "",
+                "opacity": 1.0,
+                "locked": True,
+                "pos": [0.0, 0.0],
+                "scale": 1.0,
+                "image_data": "",
+                "image_format": "",
+            },
+        }
         self._nodes_by_id: Dict[str, NodeItem] = {}
         self._edges_by_id: Dict[str, EdgeItem] = {}
 
@@ -59,7 +73,19 @@ class CanvasScene(QGraphicsScene):
         self._edges_by_id.clear()
         self._background_item = None
 
-        base = {"nodes": [], "edges": [], "background": {"path": "", "opacity": 1.0, "locked": True}}
+        base = {
+            "nodes": [],
+            "edges": [],
+            "background": {
+                "path": "",
+                "opacity": 1.0,
+                "locked": True,
+                "pos": [0.0, 0.0],
+                "scale": 1.0,
+                "image_data": "",
+                "image_format": "",
+            },
+        }
         self._project_canvas = {**base, **(canvas or {})}
         # Ensure background dict exists
         bg = self._project_canvas.get("background") or {}
@@ -67,17 +93,45 @@ class CanvasScene(QGraphicsScene):
             "path": str(bg.get("path", "") or ""),
             "opacity": float(bg.get("opacity", 1.0) or 1.0),
             "locked": bool(bg.get("locked", True)),
+            "pos": list(bg.get("pos") or [0.0, 0.0]),
+            "scale": float(bg.get("scale", 1.0) or 1.0),
+            "image_data": str(bg.get("image_data", "") or ""),
+            "image_format": str(bg.get("image_format", "") or ""),
         }
 
         # Background first (sets sceneRect to image size)
-        if self._project_canvas["background"]["path"]:
+        bg_path = self._project_canvas["background"]["path"]
+        bg_data = self._project_canvas["background"]["image_data"]
+        if bg_data:
             try:
-                self.set_background_image(self._project_canvas["background"]["path"], emit=False)
-                self.set_background_opacity(self._project_canvas["background"]["opacity"], emit=False)
-                self.set_background_locked(self._project_canvas["background"]["locked"], emit=False)
+                raw = base64.b64decode(bg_data.encode("ascii"))
+                pix = QPixmap()
+                fmt = self._project_canvas["background"]["image_format"] or None
+                if fmt:
+                    pix.loadFromData(raw, fmt.upper())
+                else:
+                    pix.loadFromData(raw)
+                if pix.isNull():
+                    raise ValueError("Imagen embebida inválida")
+                self._apply_background_pixmap(pix, emit=False)
+            except Exception:
+                self._project_canvas["background"]["image_data"] = ""
+        elif bg_path:
+            try:
+                self.set_background_image(bg_path, emit=False)
             except Exception:
                 # keep running even if the file is missing
                 self._project_canvas["background"]["path"] = ""
+
+        if self._background_item is not None:
+            pos = self._project_canvas["background"]["pos"]
+            if isinstance(pos, (list, tuple)) and len(pos) >= 2:
+                self._background_item.setPos(float(pos[0]), float(pos[1]))
+            scale = float(self._project_canvas["background"]["scale"] or 1.0)
+            if scale > 0:
+                self._background_item.setScale(scale)
+            self.set_background_opacity(self._project_canvas["background"]["opacity"], emit=False)
+            self.set_background_locked(self._project_canvas["background"]["locked"], emit=False)
 
         # rebuild nodes
         for n in self._project_canvas.get("nodes", []) or []:
@@ -121,11 +175,7 @@ class CanvasScene(QGraphicsScene):
         return self._project_canvas
 
     # -------------------- Background image --------------------
-    def set_background_image(self, image_path: str, emit: bool = True) -> None:
-        pix = QPixmap(image_path)
-        if pix.isNull():
-            raise ValueError(f"No se pudo cargar la imagen: {image_path}")
-
+    def _apply_background_pixmap(self, pix: QPixmap, emit: bool = True) -> None:
         if self._background_item is None:
             self._background_item = QGraphicsPixmapItem()
             self._background_item.setZValue(-1000)
@@ -136,10 +186,36 @@ class CanvasScene(QGraphicsScene):
         self._background_item.setPixmap(pix)
         self.setSceneRect(QRectF(pix.rect()))
 
+        if emit:
+            self.signals.project_changed.emit(self._project_canvas)
+
+    def set_background_image(self, image_path: str, emit: bool = True) -> None:
+        try:
+            raw = Path(image_path).read_bytes()
+        except Exception:
+            raw = b""
+        fmt = Path(image_path).suffix.lstrip(".").lower()
+        pix = QPixmap()
+        if raw:
+            pix.loadFromData(raw, fmt.upper() if fmt else None)
+        if pix.isNull():
+            pix = QPixmap(image_path)
+        if pix.isNull():
+            raise ValueError(f"No se pudo cargar la imagen: {image_path}")
+        self._apply_background_pixmap(pix, emit=False)
+
         self._project_canvas.setdefault("background", {})
         self._project_canvas["background"]["path"] = str(image_path)
+        self._project_canvas["background"]["image_data"] = base64.b64encode(raw).decode("ascii") if raw else ""
+        self._project_canvas["background"]["image_format"] = fmt or ""
         self._project_canvas["background"].setdefault("opacity", 1.0)
         self._project_canvas["background"].setdefault("locked", True)
+        self._project_canvas["background"].setdefault("pos", [0.0, 0.0])
+        self._project_canvas["background"].setdefault("scale", 1.0)
+        if self._background_item is not None:
+            pos = self._project_canvas["background"]["pos"]
+            self._background_item.setPos(float(pos[0]), float(pos[1]))
+            self._background_item.setScale(float(self._project_canvas["background"]["scale"]))
 
         if emit:
             self.signals.project_changed.emit(self._project_canvas)
@@ -148,7 +224,15 @@ class CanvasScene(QGraphicsScene):
         if self._background_item is not None:
             self.removeItem(self._background_item)
             self._background_item = None
-        self._project_canvas["background"] = {"path": "", "opacity": 1.0, "locked": True}
+        self._project_canvas["background"] = {
+            "path": "",
+            "opacity": 1.0,
+            "locked": True,
+            "pos": [0.0, 0.0],
+            "scale": 1.0,
+            "image_data": "",
+            "image_format": "",
+        }
         if emit:
             self.signals.project_changed.emit(self._project_canvas)
 
@@ -179,6 +263,7 @@ class CanvasScene(QGraphicsScene):
             else:
                 self._background_item.setAcceptedMouseButtons(Qt.LeftButton)
                 self._background_item.setFlag(QGraphicsPixmapItem.ItemIsMovable, True)
+            self._background_item.setFlag(QGraphicsPixmapItem.ItemSendsGeometryChanges, True)
         self._project_canvas.setdefault("background", {})
         self._project_canvas["background"]["locked"] = locked
         if emit:
@@ -285,15 +370,17 @@ class CanvasScene(QGraphicsScene):
             return
 
         if kind == "equipment":
-            equip_id = str(payload.get("type", "") or payload.get("id", ""))
-            meta = self._equipment_items_by_id.get(equip_id, {})
-            name = str(payload.get("label") or meta.get("name") or equip_id or "Equipo")
+            equip_type = str(payload.get("type", "") or payload.get("id", ""))
+            normalized = equip_type.strip().lower()
+            is_cabinet = normalized in ("cabinet", "armario", "tablero")
+            meta = {} if is_cabinet else self._equipment_items_by_id.get(equip_type, {})
+            name = str(payload.get("label") or meta.get("name") or equip_type or "Equipo")
             self.add_node(
-                "equipment",
+                "cabinet" if is_cabinet else "equipment",
                 name,
                 float(scene_pos.x()),
                 float(scene_pos.y()),
-                library_item_id=(equip_id or None),
+                library_item_id=(None if is_cabinet else (equip_type or None)),
             )
             return
 
@@ -322,6 +409,18 @@ class CanvasScene(QGraphicsScene):
             else:
                 self._pending_from_node_id = None
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
+        if self._background_item is None:
+            return
+        if self._project_canvas.get("background", {}).get("locked", True):
+            return
+        pos = self._background_item.pos()
+        self._project_canvas.setdefault("background", {})
+        self._project_canvas["background"]["pos"] = [float(pos.x()), float(pos.y())]
+        self._project_canvas["background"]["scale"] = float(self._background_item.scale() or 1.0)
+        self.signals.project_changed.emit(self._project_canvas)
 
     # -------------------- Internals --------------------
     def _next_node_id(self) -> str:
@@ -467,4 +566,3 @@ class CanvasScene(QGraphicsScene):
                 e._apply_style()  # noqa: SLF001 - internal helper for immediate UI feedback
             except Exception:
                 pass
-

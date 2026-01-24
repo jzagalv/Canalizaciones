@@ -6,8 +6,9 @@ from typing import Dict, List, Optional
 
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
-    QAction, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
-    QPushButton, QSplitter, QTabWidget, QVBoxLayout, QWidget
+    QAction, QActionGroup, QApplication, QFileDialog, QHBoxLayout, QLabel,
+    QMainWindow, QMessageBox, QPushButton, QSplitter, QTabWidget, QVBoxLayout,
+    QWidget
 )
 
 from data.repositories.project_store import load_project, save_project
@@ -18,6 +19,7 @@ from data.repositories.template_repo import (
     load_base_template,
     save_base_template,
 )
+from infra.persistence.app_config import AppConfig
 from infra.persistence.materiales_bd_repo import (
     MaterialesBdError,
     load_materiales_bd,
@@ -28,11 +30,11 @@ from domain.libraries.template_models import BaseTemplate
 from domain.services.engine import compute_project_solutions
 from ui.tabs.canvas_tab import CanvasTab
 from ui.tabs.circuits_tab import CircuitsTab
-from ui.tabs.libraries_tab import LibrariesTab
 from ui.tabs.primary_equipment_tab import PrimaryEquipmentTab
 from ui.tabs.equipment_library_tab import EquipmentLibraryTab
 from ui.tabs.results_tab import ResultsTab
 from ui.dialogs.libraries_templates_dialog import LibrariesTemplatesDialog
+from ui.theme_manager import apply_theme
 
 
 class MainWindow(QMainWindow):
@@ -45,12 +47,12 @@ class MainWindow(QMainWindow):
     - Project (.proj.json) persists canvas + circuits + library selection.
     """
 
-    def __init__(self, app_dir: str):
+    def __init__(self, app_dir: Path, app_config: AppConfig):
         super().__init__()
         self.setWindowTitle("Canalizaciones BT - Rediseño")
-        self.resize(1200, 750)
-
         self._app_dir = Path(app_dir)
+        self._app_config = app_config
+        self._current_theme = app_config.theme
         self._project_path: Optional[str] = None
         self.project = Project()
 
@@ -61,6 +63,10 @@ class MainWindow(QMainWindow):
         self._base_template: Optional[BaseTemplate] = None
         self._lib_tpl_dialog: Optional[LibrariesTemplatesDialog] = None
 
+        if self._app_config.materiales_bd_path and Path(self._app_config.materiales_bd_path).exists():
+            self.project.active_materiales_bd_path = self._app_config.materiales_bd_path
+
+        self._apply_window_state_from_config()
         self._build_menu()
         self._build_ui()
         self._refresh_all()
@@ -85,16 +91,6 @@ class MainWindow(QMainWindow):
         act_save_as.triggered.connect(self._save_project_as)
         m_file.addAction(act_save_as)
 
-        m_lib = self.menuBar().addMenu("Bibliotecas")
-
-        act_add_lib = QAction("Agregar .lib...", self)
-        act_add_lib.triggered.connect(self._add_lib)
-        m_lib.addAction(act_add_lib)
-
-        act_validate = QAction("Validar/Combinar", self)
-        act_validate.triggered.connect(self._validate_libs)
-        m_lib.addAction(act_validate)
-
         m_calc = self.menuBar().addMenu("Calculo")
         act_recalc = QAction("Recalcular", self)
         act_recalc.triggered.connect(self._recalculate)
@@ -114,6 +110,29 @@ class MainWindow(QMainWindow):
         act_admin.triggered.connect(self._open_libraries_templates_dialog)
         m_libs.addAction(act_admin)
 
+        m_view = self.menuBar().addMenu("Ver")
+        m_theme = m_view.addMenu("Tema")
+
+        self._theme_group = QActionGroup(self)
+        self._theme_group.setExclusive(True)
+
+        self.act_theme_light = QAction("I-SEP Claro", self)
+        self.act_theme_light.setCheckable(True)
+        self.act_theme_light.toggled.connect(lambda checked: self._on_theme_toggled("light", checked))
+        self._theme_group.addAction(self.act_theme_light)
+        m_theme.addAction(self.act_theme_light)
+
+        self.act_theme_dark = QAction("I-SEP Oscuro", self)
+        self.act_theme_dark.setCheckable(True)
+        self.act_theme_dark.toggled.connect(lambda checked: self._on_theme_toggled("dark", checked))
+        self._theme_group.addAction(self.act_theme_dark)
+        m_theme.addAction(self.act_theme_dark)
+
+        if self._current_theme == "dark":
+            self.act_theme_dark.setChecked(True)
+        else:
+            self.act_theme_light.setChecked(True)
+
     # -------------------- UI --------------------
     def _build_ui(self) -> None:
         cw = QWidget(self)
@@ -132,10 +151,12 @@ class MainWindow(QMainWindow):
         top.addWidget(self.lbl_materiales, 1)
 
         self.btn_validate = QPushButton("Validar bibliotecas")
+        self.btn_validate.setProperty("secondary", True)
         self.btn_validate.clicked.connect(self._validate_libs)
         top.addWidget(self.btn_validate)
 
         self.btn_recalc = QPushButton("Recalcular")
+        self.btn_recalc.setProperty("primary", True)
         self.btn_recalc.clicked.connect(self._recalculate)
         top.addWidget(self.btn_recalc)
 
@@ -151,15 +172,14 @@ class MainWindow(QMainWindow):
         self.tab_equipment_lib = EquipmentLibraryTab()
         self.tab_primary = PrimaryEquipmentTab()
         self.tab_results = ResultsTab()
-        self.tab_libs = LibrariesTab()
 
         self.tabs.addTab(self.tab_canvas, "Canvas")
         self.tabs.addTab(self.tab_circuits, "Circuitos")
         self.tabs.addTab(self.tab_results, "Resultados")
-        self.tabs.addTab(self.tab_libs, "Bibliotecas")
 
         self.lbl_status = QLabel("")
         self.lbl_status.setWordWrap(True)
+        self.lbl_status.setObjectName("statusLabel")
         splitter.addWidget(self.lbl_status)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 0)
@@ -167,9 +187,23 @@ class MainWindow(QMainWindow):
         # wiring
         self.tab_canvas.project_changed.connect(self._on_project_mutated)
         self.tab_circuits.project_changed.connect(self._on_project_mutated)
-        self.tab_libs.project_changed.connect(self._on_libs_mutated)
 
         self.tab_canvas.selection_changed.connect(self.tab_circuits.set_active_node)
+
+    def _on_theme_toggled(self, theme: str, checked: bool) -> None:
+        if not checked:
+            return
+        self._set_theme(theme)
+
+    def _set_theme(self, theme: str) -> None:
+        if theme == self._current_theme:
+            return
+        app = QApplication.instance()
+        if app is not None:
+            apply_theme(app, self._app_dir, theme)
+        self._app_config.theme = theme
+        self._app_config.save()
+        self._current_theme = theme
 
     # -------------------- Project I/O --------------------
     def _new_project(self) -> None:
@@ -182,7 +216,7 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Abrir proyecto",
-            str(self._app_dir),
+            self._project_dialog_dir(),
             "Project (*.proj.json)"
         )
         if not path:
@@ -190,6 +224,8 @@ class MainWindow(QMainWindow):
         try:
             self.project = load_project(path)
             self._project_path = path
+            self._app_config.last_project_path = path
+            self._app_config.save()
             self._eff = None
             self._refresh_all()
         except Exception as e:
@@ -203,6 +239,8 @@ class MainWindow(QMainWindow):
             save_project(self.project, self._project_path)
             self.statusBar().showMessage("Proyecto guardado", 2000)
             self._refresh_title()
+            self._app_config.last_project_path = self._project_path
+            self._app_config.save()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
@@ -210,7 +248,7 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Guardar proyecto",
-            str(self._app_dir),
+            self._project_dialog_dir(),
             "Project (*.proj.json)"
         )
         if not path:
@@ -219,21 +257,10 @@ class MainWindow(QMainWindow):
             path += ".proj.json"
         self._project_path = path
         self._save_project()
+        self._app_config.last_project_path = path
+        self._app_config.save()
 
     # -------------------- Libraries --------------------
-    def _add_lib(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Agregar biblioteca .lib",
-            str(self._app_dir),
-            "Library (*.lib *.json)"
-        )
-        if not path:
-            return
-        self.project.libraries.append(LibraryRef(path=path, enabled=True, priority=10))
-        self._eff = None
-        self._refresh_all()
-
     def _validate_libs(self) -> None:
         try:
             self._eff = self._build_effective_catalog()
@@ -280,17 +307,12 @@ class MainWindow(QMainWindow):
         self._eff = None  # libraries/canvas/circuits may have changed
         self._refresh_title()
 
-    def _on_libs_mutated(self) -> None:
-        self._on_project_mutated()
-        self._refresh_equipment_library_items()
-
     def _refresh_all(self) -> None:
         self._refresh_title()
         self.tab_canvas.set_project(self.project)
         self.tab_circuits.set_project(self.project)
         self.tab_equipment_lib.set_project(self.project)
         self.tab_primary.set_project(self.project)
-        self.tab_libs.set_project(self.project)
         self.tab_results.set_results(self.project, {}, [])
         self._refresh_equipment_library_items()
         self._load_active_materiales()
@@ -374,6 +396,9 @@ class MainWindow(QMainWindow):
                 self._materiales_doc = load_materiales_bd(self._materiales_path)
             except MaterialesBdError:
                 self._materiales_doc = None
+            else:
+                self._app_config.materiales_bd_path = self._materiales_path
+                self._app_config.save()
 
         self._base_template = None
         if self.project.active_template_path:
@@ -420,6 +445,8 @@ class MainWindow(QMainWindow):
             self._materiales_doc = load_materiales_bd(path)
             self._materiales_path = path
             self.project.active_materiales_bd_path = path
+            self._app_config.materiales_bd_path = path
+            self._app_config.save()
             self._ensure_materiales_in_libraries(path)
             self._refresh_materiales_label()
             self._sync_libraries_templates_dialog()
@@ -466,6 +493,8 @@ class MainWindow(QMainWindow):
             save_materiales_bd(str(target), self._materiales_doc)
             self._materiales_path = str(target)
             self.project.active_materiales_bd_path = self._materiales_path
+            self._app_config.materiales_bd_path = self._materiales_path
+            self._app_config.save()
             self._ensure_materiales_in_libraries(self._materiales_path)
             self._refresh_materiales_label()
             self._sync_libraries_templates_dialog()
@@ -558,3 +587,29 @@ class MainWindow(QMainWindow):
                 items_by_id[str(equip_id)] = it
         self.tab_canvas.set_equipment_items(items_by_id)
         self.tab_equipment_lib.set_equipment_items(items_by_id)
+
+    def _project_dialog_dir(self) -> str:
+        last_path = self._app_config.last_project_path
+        if last_path:
+            parent = Path(last_path).parent
+            if parent.exists():
+                return str(parent)
+        return str(self._app_dir)
+
+    def _apply_window_state_from_config(self) -> None:
+        size = self._app_config.window_size
+        pos = self._app_config.window_pos
+        if size:
+            self.resize(int(size[0]), int(size[1]))
+        if pos:
+            self.move(int(pos[0]), int(pos[1]))
+
+    def closeEvent(self, event) -> None:
+        self._app_config.window_size = [self.width(), self.height()]
+        self._app_config.window_pos = [self.x(), self.y()]
+        if self._project_path:
+            self._app_config.last_project_path = self._project_path
+        if self._materiales_path:
+            self._app_config.materiales_bd_path = self._materiales_path
+        self._app_config.save()
+        super().closeEvent(event)

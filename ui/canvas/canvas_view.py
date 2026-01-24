@@ -93,9 +93,9 @@ class CanvasView(QGraphicsView):
                 scene_pos = self.mapToScene(event.pos())
                 sc = self.scene()
                 if hasattr(sc, "handle_drop"):
-                    sc.handle_drop(scene_pos, payload)
-                event.acceptProposedAction()
-                return
+                    if sc.handle_drop(scene_pos, payload):
+                        event.acceptProposedAction()
+                        return
             except Exception:
                 pass
         if md.hasFormat("application/x-canalizaciones-equipment"):
@@ -104,9 +104,9 @@ class CanvasView(QGraphicsView):
                 scene_pos = self.mapToScene(event.pos())
                 sc = self.scene()
                 if hasattr(sc, "handle_drop"):
-                    sc.handle_drop(scene_pos, payload)
-                event.acceptProposedAction()
-                return
+                    if sc.handle_drop(scene_pos, payload):
+                        event.acceptProposedAction()
+                        return
             except Exception:
                 # Fallback: let base class handle
                 pass

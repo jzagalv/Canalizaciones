@@ -27,6 +27,8 @@ from ui.canvas.canvas_items import NodeItem, EdgeItem, NodeData
 class CanvasSceneSignals(QObject):
     project_changed = pyqtSignal(dict)
     selection_changed = pyqtSignal(dict)
+    library_item_used = pyqtSignal(str)
+    library_item_released = pyqtSignal(str)
 
 
 class CanvasScene(QGraphicsScene):
@@ -350,7 +352,7 @@ class CanvasScene(QGraphicsScene):
                 to_remove = [str(e.get("id")) for e in (self._project_canvas.get("edges", []) or []) if e.get("from") == nid or e.get("to") == nid]
                 for eid in to_remove:
                     self._remove_edge(eid)
-                self._remove_node(nid)
+                self._remove_node(nid, release_library_item=True)
             elif isinstance(item, EdgeItem):
                 self._remove_edge(item.edge_id)
 
@@ -358,16 +360,16 @@ class CanvasScene(QGraphicsScene):
         self.signals.project_changed.emit(self._project_canvas)
 
     # -------------------- DnD support --------------------
-    def handle_drop(self, scene_pos, payload: Dict) -> None:
+    def handle_drop(self, scene_pos, payload: Dict) -> bool:
         kind = str(payload.get("kind", ""))
         if kind == "equipment_item":
             equip_id = str(payload.get("id", ""))
             if not equip_id:
-                return
+                return False
             meta = self._equipment_items_by_id.get(equip_id, {})
             name = str(meta.get("name", equip_id))
             self.add_node("equipment", name, float(scene_pos.x()), float(scene_pos.y()), library_item_id=equip_id)
-            return
+            return True
 
         if kind == "equipment":
             equip_type = str(payload.get("type", "") or payload.get("id", ""))
@@ -375,24 +377,28 @@ class CanvasScene(QGraphicsScene):
             is_cabinet = normalized in ("cabinet", "armario", "tablero")
             meta = {} if is_cabinet else self._equipment_items_by_id.get(equip_type, {})
             name = str(payload.get("label") or meta.get("name") or equip_type or "Equipo")
+            library_id = str(payload.get("library_id") or "") or None
             self.add_node(
                 "cabinet" if is_cabinet else "equipment",
                 name,
                 float(scene_pos.x()),
                 float(scene_pos.y()),
-                library_item_id=(None if is_cabinet else (equip_type or None)),
+                library_item_id=(library_id or (None if is_cabinet else (equip_type or None))),
             )
-            return
+            if library_id:
+                self.signals.library_item_used.emit(library_id)
+            return True
 
         if kind == "camera":
-            name = str(payload.get("label") or "Cámara")
+            name = str(payload.get("label") or "C?mara")
             self.add_node("chamber", name, float(scene_pos.x()), float(scene_pos.y()))
-            return
+            return True
 
         if kind == "gap":
             name = str(payload.get("label") or "GAP")
             self.add_node("junction", name, float(scene_pos.x()), float(scene_pos.y()))
-            return
+            return True
+        return False
 
     # -------------------- Events --------------------
     def mousePressEvent(self, event):
@@ -451,11 +457,16 @@ class CanvasScene(QGraphicsScene):
         self._refresh_edges()
         self.signals.project_changed.emit(self._project_canvas)
 
-    def _remove_node(self, node_id: str) -> None:
+    def _remove_node(self, node_id: str, release_library_item: bool = False) -> None:
         node = self._nodes_by_id.pop(node_id, None)
         if node:
+            library_item_id = node.data.library_item_id
             self.removeItem(node)
         self._project_canvas["nodes"] = [n for n in (self._project_canvas.get("nodes", []) or []) if str(n.get("id")) != str(node_id)]
+        if release_library_item and node and library_item_id:
+            remaining = any(str(n.get("library_item_id")) == str(library_item_id) for n in (self._project_canvas.get("nodes", []) or []))
+            if not remaining:
+                self.signals.library_item_released.emit(str(library_item_id))
 
     def _remove_edge(self, edge_id: str) -> None:
         edge = self._edges_by_id.pop(edge_id, None)

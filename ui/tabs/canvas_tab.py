@@ -37,6 +37,8 @@ class CanvasTab(QWidget):
         self.scene = CanvasScene()
         self.scene.signals.project_changed.connect(self.project_changed)
         self.scene.signals.selection_changed.connect(self.selection_changed)
+        self.scene.signals.library_item_used.connect(self._on_library_item_used)
+        self.scene.signals.library_item_released.connect(self._on_library_item_released)
 
         self._selected_edge_id: Optional[str] = None
         self._material: Dict = {}
@@ -154,6 +156,7 @@ class CanvasTab(QWidget):
         try:
             self.scene.set_equipment_items(items_by_id)
             self.library_panel.set_equipment_items(items_by_id)
+            self._sync_library_usage_from_canvas()
         except Exception:
             pass
 
@@ -163,6 +166,7 @@ class CanvasTab(QWidget):
         self._project.canvas = self.scene.get_project_canvas()
         self._sync_bg_controls_from_model()
         self._apply_view_state_from_model()
+        self._sync_library_usage_from_canvas()
 
     def set_edge_statuses(self, solutions: Dict[str, Dict]) -> None:
         # solutions: edge_id -> {status, badge}
@@ -258,6 +262,18 @@ class CanvasTab(QWidget):
         for i in ids:
             self.cmb_run_catalog.addItem(i)
         self.cmb_run_catalog.blockSignals(False)
+
+    def _sync_library_usage_from_canvas(self) -> None:
+        if not self._project:
+            return
+        used_ids = {str(n.get("library_item_id")) for n in (self._project.canvas.get("nodes") or []) if n.get("library_item_id")}
+        self.library_panel.set_used_library_ids(used_ids)
+
+    def _on_library_item_used(self, library_id: str) -> None:
+        self.library_panel.set_library_item_state_by_id(library_id, "used")
+
+    def _on_library_item_released(self, library_id: str) -> None:
+        self.library_panel.set_library_item_state_by_id(library_id, "available")
 
     def _on_view_state_changed(self, state: Dict) -> None:
         if self._suspend_view_updates or not self._project:

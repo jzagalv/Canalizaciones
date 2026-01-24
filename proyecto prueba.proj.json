@@ -10,23 +10,192 @@
   "canvas": {
     "nodes": [
       {
+        "id": "N3",
+        "type": "junction",
+        "name": "GAP",
+        "x": 3932.2381458948516,
+        "y": 3234.21930773052,
+        "library_item_id": null
+      },
+      {
+        "id": "N4",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4057.724678598551,
+        "y": 3235.1996712672667,
+        "library_item_id": null
+      },
+      {
+        "id": "N5",
+        "type": "equipment",
+        "name": "LCC-H2",
+        "x": 4185.171938375748,
+        "y": 3100.8898667328376,
+        "library_item_id": "user:4d775db1ab02418ab0256f405e041765"
+      },
+      {
         "id": "N1",
         "type": "equipment",
         "name": "LCC-HT1",
-        "x": 3933.5616366694603,
-        "y": 3100.399684964464,
-        "library_item_id": "equipment"
+        "x": 3935.179236505094,
+        "y": 3100.8898667328385,
+        "library_item_id": "user:6784f4936c9045ff84c45316dfcb5462"
       },
       {
         "id": "N2",
         "type": "equipment",
         "name": "LCC-H1",
-        "x": 4058.7050421352988,
-        "y": 3101.527103031724,
-        "library_item_id": "equipment"
+        "x": 4053.803224451561,
+        "y": 3100.889866732838,
+        "library_item_id": "user:46437ee3473f4451bb6e571b21b9f73e"
+      },
+      {
+        "id": "N6",
+        "type": "equipment",
+        "name": "LCC-HS",
+        "x": 4309.6781075427,
+        "y": 3097.9487761225955,
+        "library_item_id": "user:b072453d389746e6ae7c149568a99a22"
+      },
+      {
+        "id": "N7",
+        "type": "equipment",
+        "name": "LCC-HR",
+        "x": 4438.105730856642,
+        "y": 3097.9487761225964,
+        "library_item_id": "user:065d8e73c6d94422b8617e0bfda9924e"
+      },
+      {
+        "id": "N8",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4183.893203327815,
+        "y": 3236.180034804015,
+        "library_item_id": null
+      },
+      {
+        "id": "N9",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4308.697744005951,
+        "y": 3237.160398340762,
+        "library_item_id": null
+      },
+      {
+        "id": "N10",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4438.105730856642,
+        "y": 3237.1603983407626,
+        "library_item_id": null
+      },
+      {
+        "id": "N11",
+        "type": "equipment",
+        "name": "MK-T1",
+        "x": 3579.7214762599697,
+        "y": 4531.375066833972,
+        "library_item_id": "user:cf46345cf5dd4362add99b512e337199"
+      },
+      {
+        "id": "N12",
+        "type": "equipment",
+        "name": "CTRL-T1",
+        "x": 3590.09372247876,
+        "y": 4164.456856844267,
+        "library_item_id": "user:56d5f3b673c94a0da1ddaf790b580fd0"
+      },
+      {
+        "id": "N13",
+        "type": "equipment",
+        "name": "TSA-1",
+        "x": 3392.0578371468923,
+        "y": 5263.273457286986,
+        "library_item_id": "user:a8fa17d1408e47de991cae448bb9ddf9"
       }
     ],
-    "edges": [],
+    "edges": [
+      {
+        "id": "E3",
+        "from": "N3",
+        "to": "N4",
+        "kind": "epc",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E1",
+        "from": "N1",
+        "to": "N3",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E2",
+        "from": "N2",
+        "to": "N4",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E4",
+        "from": "N5",
+        "to": "N8",
+        "kind": "epc",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E5",
+        "from": "N6",
+        "to": "N9",
+        "kind": "epc",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E6",
+        "from": "N4",
+        "to": "N8",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E7",
+        "from": "N9",
+        "to": "N8",
+        "kind": "epc",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E8",
+        "from": "N9",
+        "to": "N10",
+        "kind": "epc",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E9",
+        "from": "N7",
+        "to": "N10",
+        "kind": "epc",
+        "mode": "manual",
+        "runs": []
+      },
+      {
+        "id": "E10",
+        "from": "N11",
+        "to": "N12",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": []
+      }
+    ],
     "background": {
       "path": "C:/Users/jorge/OneDrive/Documentos/Python/Canalizaciones/SE276T031-P-EE-01-013-B.png",
       "opacity": 1.0,
@@ -40,10 +209,10 @@
       "image_format": "png"
     },
     "view": {
-      "scale": 1.0200297772370104,
+      "scale": 1.1730342438225618,
       "center": [
-        4060.6657692087942,
-        3116.5756833208006
+        4103.887013828888,
+        3195.9851297973614
       ]
     }
   },

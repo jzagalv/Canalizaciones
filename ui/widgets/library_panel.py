@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+import uuid
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from PyQt5.QtCore import Qt, QMimeData, QPoint
 from PyQt5.QtGui import QDrag, QFontMetrics, QPainter, QPixmap, QColor, QPen, QBrush
@@ -40,6 +41,8 @@ class LibraryTree(QTreeWidget):
             return
         payload = item.data(0, Qt.UserRole)
         if not payload:
+            return
+        if payload.get("state") == "used":
             return
 
         md = QMimeData()
@@ -87,6 +90,8 @@ class LibraryPanel(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._equipment_items_by_id: Dict[str, Dict[str, Any]] = {}
+        self._library_items_by_id: Dict[str, QTreeWidgetItem] = {}
+        self._used_library_ids: Set[str] = set()
 
         root = QVBoxLayout(self)
         root.setContentsMargins(8, 8, 8, 8)
@@ -111,8 +116,25 @@ class LibraryPanel(QWidget):
         self._equipment_items_by_id = items_by_id or {}
         self._reload()
 
+    def set_used_library_ids(self, used_ids: Iterable[str]) -> None:
+        self._used_library_ids = {str(uid) for uid in (used_ids or []) if uid}
+        self._apply_used_state()
+
+    def set_library_item_state_by_id(self, library_id: str, state: str) -> None:
+        if not library_id:
+            return
+        item = self._library_items_by_id.get(str(library_id))
+        if not item:
+            return
+        if state == "used":
+            self._used_library_ids.add(str(library_id))
+        else:
+            self._used_library_ids.discard(str(library_id))
+        self.set_library_item_state(item, state)
+
     def _reload(self) -> None:
         self.tree.clear()
+        self._library_items_by_id.clear()
         self.tree.setUpdatesEnabled(False)
         try:
             self._add_section("Equipos", self._equipment_payloads())
@@ -122,6 +144,7 @@ class LibraryPanel(QWidget):
         finally:
             self.tree.setUpdatesEnabled(True)
         self._apply_filter(self.search.text())
+        self._apply_used_state()
 
     def _equipment_payloads(self) -> List[Dict[str, Any]]:
         items = []
@@ -131,6 +154,8 @@ class LibraryPanel(QWidget):
                 "kind": "equipment",
                 "type": str(equip_id),
                 "label": name,
+                "library_id": str(equip_id),
+                "state": "available",
             }
             items.append(payload)
         return items
@@ -148,12 +173,24 @@ class LibraryPanel(QWidget):
         self.tree.addTopLevelItem(parent)
 
         for payload in payloads:
+            payload = dict(payload or {})
             label = str(payload.get("label", "") or payload.get("type", ""))
             child = QTreeWidgetItem([label])
+            is_equipment_section = title == "Equipos" and payload.get("kind") == "equipment"
+            if is_equipment_section:
+                library_id = str(payload.get("library_id") or payload.get("type") or payload.get("id") or "")
+                if not library_id:
+                    library_id = f"user:{uuid.uuid4().hex}"
+                payload["library_id"] = library_id
+                payload.setdefault("state", "available")
+                child.setData(0, Qt.UserRole + 2, label)
+                self._library_items_by_id[library_id] = child
             child.setData(0, Qt.UserRole, payload)
             child.setData(0, Qt.UserRole + 1, f"{label} {payload.get('type', '')} {payload.get('kind', '')}")
             child.setFlags(child.flags() | Qt.ItemIsDragEnabled)
             parent.addChild(child)
+            if is_equipment_section and payload.get("library_id") in self._used_library_ids:
+                self.set_library_item_state(child, "used")
 
     def _apply_filter(self, text: str) -> None:
         needle = (text or "").strip().lower()
@@ -174,6 +211,29 @@ class LibraryPanel(QWidget):
             if top.text(0) == title:
                 return top
         return None
+
+    def _apply_used_state(self) -> None:
+        for library_id, item in self._library_items_by_id.items():
+            state = "used" if library_id in self._used_library_ids else "available"
+            self.set_library_item_state(item, state)
+
+    def set_library_item_state(self, item: QTreeWidgetItem, state: str) -> None:
+        payload = item.data(0, Qt.UserRole) or {}
+        if payload.get("kind") != "equipment":
+            return
+        state = "used" if state == "used" else "available"
+        base_label = str(item.data(0, Qt.UserRole + 2) or item.text(0)).replace(" (usado)", "")
+        payload = dict(payload)
+        payload["state"] = state
+        item.setData(0, Qt.UserRole, payload)
+        if state == "used":
+            item.setText(0, f"{base_label} (usado)")
+            item.setForeground(0, QBrush(QColor("#9ca3af")))
+            item.setFlags(item.flags() & ~Qt.ItemIsDragEnabled)
+        else:
+            item.setText(0, base_label)
+            item.setForeground(0, QBrush())
+            item.setFlags(item.flags() | Qt.ItemIsDragEnabled)
 
     def _open_add_equipment_dialog(self) -> None:
         dlg = AddEquipmentDialog(self)
@@ -196,14 +256,22 @@ class LibraryPanel(QWidget):
                 QMessageBox.warning(self, "Equipos", f"Ya existe un equipo llamado '{name}'.")
                 return
 
-        payload: Dict[str, Any] = {"kind": "equipment", "type": kind, "label": name}
+        payload: Dict[str, Any] = {
+            "kind": "equipment",
+            "type": kind,
+            "label": name,
+            "library_id": f"user:{uuid.uuid4().hex}",
+            "state": "available",
+        }
 
         child = QTreeWidgetItem([name])
         child.setData(0, Qt.UserRole, payload)
         child.setData(0, Qt.UserRole + 1, f"{name} {kind} equipment")
+        child.setData(0, Qt.UserRole + 2, name)
         child.setFlags(child.flags() | Qt.ItemIsDragEnabled)
         parent.addChild(child)
         parent.setExpanded(True)
+        self._library_items_by_id[payload["library_id"]] = child
 
         self._apply_filter(self.search.text())
         self.tree.setCurrentItem(child)

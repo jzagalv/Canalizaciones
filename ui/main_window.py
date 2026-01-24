@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QAction, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
     QPushButton, QSplitter, QTabWidget, QVBoxLayout, QWidget
@@ -13,18 +13,17 @@ from PyQt5.QtWidgets import (
 from data.repositories.project_store import load_project, save_project
 from data.repositories.lib_loader import LibError, load_lib
 from data.repositories.lib_merge import EffectiveCatalog, merge_libs
-from data.repositories.materials_library_repo import (
-    MaterialsLibraryError,
-    load_materials_library,
-    save_materials_library,
-)
 from data.repositories.template_repo import (
     TemplateRepoError,
     load_base_template,
     save_base_template,
 )
+from infra.persistence.materiales_bd_repo import (
+    MaterialesBdError,
+    load_materiales_bd,
+    save_materiales_bd,
+)
 from domain.entities.models import LibraryRef, Project
-from domain.libraries.materials_models import MaterialsLibrary
 from domain.libraries.template_models import BaseTemplate
 from domain.services.engine import compute_project_solutions
 from ui.tabs.canvas_tab import CanvasTab
@@ -37,6 +36,7 @@ from ui.dialogs.libraries_templates_dialog import LibrariesTemplatesDialog
 
 
 class MainWindow(QMainWindow):
+    materialsDbChanged = pyqtSignal(str, dict)
     """Main window.
 
     Goals:
@@ -56,7 +56,8 @@ class MainWindow(QMainWindow):
 
         # cached effective catalog
         self._eff: Optional[EffectiveCatalog] = None
-        self._materials_library: Optional[MaterialsLibrary] = None
+        self._materiales_doc: Optional[Dict] = None
+        self._materiales_path: str = ""
         self._base_template: Optional[BaseTemplate] = None
         self._lib_tpl_dialog: Optional[LibrariesTemplatesDialog] = None
 
@@ -99,10 +100,19 @@ class MainWindow(QMainWindow):
         act_recalc.triggered.connect(self._recalculate)
         m_calc.addAction(act_recalc)
 
-        m_tools = self.menuBar().addMenu("Herramientas")
-        act_lib_tpl = QAction("Librerías y Plantillas...", self)
-        act_lib_tpl.triggered.connect(self._open_libraries_templates_dialog)
-        m_tools.addAction(act_lib_tpl)
+        m_libs = self.menuBar().addMenu("Librerías")
+
+        act_open_mat = QAction("Abrir materiales_bd.lib...", self)
+        act_open_mat.triggered.connect(self._open_materiales_bd)
+        m_libs.addAction(act_open_mat)
+
+        act_edit_mat = QAction("Editar materiales_bd.lib...", self)
+        act_edit_mat.triggered.connect(self._open_materiales_editor)
+        m_libs.addAction(act_edit_mat)
+
+        act_admin = QAction("Administrador de Librerías y Plantillas...", self)
+        act_admin.triggered.connect(self._open_libraries_templates_dialog)
+        m_libs.addAction(act_admin)
 
     # -------------------- UI --------------------
     def _build_ui(self) -> None:
@@ -116,6 +126,10 @@ class MainWindow(QMainWindow):
         self.lbl_project = QLabel("Proyecto: (sin guardar)")
         self.lbl_project.setTextInteractionFlags(Qt.TextSelectableByMouse)
         top.addWidget(self.lbl_project, 1)
+
+        self.lbl_materiales = QLabel("materiales_bd.lib activo: (no cargado)")
+        self.lbl_materiales.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        top.addWidget(self.lbl_materiales, 1)
 
         self.btn_validate = QPushButton("Validar bibliotecas")
         self.btn_validate.clicked.connect(self._validate_libs)
@@ -279,7 +293,7 @@ class MainWindow(QMainWindow):
         self.tab_libs.set_project(self.project)
         self.tab_results.set_results(self.project, {}, [])
         self._refresh_equipment_library_items()
-        self._load_active_assets()
+        self._load_active_materiales()
         self._sync_libraries_templates_dialog()
         self._refresh_status()
 
@@ -287,6 +301,10 @@ class MainWindow(QMainWindow):
         name = self.project.name or "Proyecto"
         p = self._project_path or "(sin guardar)"
         self.lbl_project.setText(f"{name} — {p}")
+
+    def _refresh_materiales_label(self) -> None:
+        path = self._materiales_path or "(no cargado)"
+        self.lbl_materiales.setText(f"materiales_bd.lib activo: {path}")
 
     def _refresh_status(self, extra_warnings: Optional[List[str]] = None) -> None:
         lines: List[str] = []
@@ -318,14 +336,13 @@ class MainWindow(QMainWindow):
     def _open_libraries_templates_dialog(self) -> None:
         if self._lib_tpl_dialog is None:
             self._lib_tpl_dialog = LibrariesTemplatesDialog(self)
-            self._lib_tpl_dialog.request_load_library.connect(self._load_materials_library_dialog)
-            self._lib_tpl_dialog.request_save_library.connect(self._save_materials_library_dialog)
-            self._lib_tpl_dialog.request_save_library_as.connect(self._save_materials_library_as_dialog)
+            self._lib_tpl_dialog.request_load_materiales.connect(self._open_materiales_bd)
+            self._lib_tpl_dialog.request_save_materiales.connect(self._save_materiales_bd)
+            self._lib_tpl_dialog.request_save_materiales_as.connect(self._save_materiales_bd_as)
             self._lib_tpl_dialog.request_load_template.connect(self._load_base_template_dialog)
             self._lib_tpl_dialog.request_save_template.connect(self._save_base_template_dialog)
-            self._lib_tpl_dialog.request_save_template_as.connect(self._save_base_template_as_dialog)
-            self._lib_tpl_dialog.library_changed.connect(self._on_materials_library_changed)
-            self._lib_tpl_dialog.template_changed.connect(self._on_base_template_changed)
+            self._lib_tpl_dialog.request_apply_template.connect(self._apply_base_template_to_project)
+            self._lib_tpl_dialog.materiales_changed.connect(self._on_materiales_changed)
             self._lib_tpl_dialog.installation_type_changed.connect(self._on_installation_type_changed)
         self._sync_libraries_templates_dialog()
         self._lib_tpl_dialog.show()
@@ -335,29 +352,30 @@ class MainWindow(QMainWindow):
     def _sync_libraries_templates_dialog(self) -> None:
         if not self._lib_tpl_dialog:
             return
-        self._lib_tpl_dialog.set_library(self._materials_library or MaterialsLibrary(), self.project.active_library_path)
-        self._lib_tpl_dialog.set_template(self._base_template or BaseTemplate(), self.project.active_template_path)
+        self._lib_tpl_dialog.set_materiales_doc(self._materiales_doc or {}, self._materiales_path)
+        self._lib_tpl_dialog.set_template_status(self.project.active_template_path)
         self._lib_tpl_dialog.set_installation_type(self.project.active_installation_type)
 
-    def _on_materials_library_changed(self, library: MaterialsLibrary) -> None:
-        self._materials_library = library
-
-    def _on_base_template_changed(self, template: BaseTemplate) -> None:
-        self._base_template = template
+    def _on_materiales_changed(self, doc: Dict) -> None:
+        self._materiales_doc = doc
+        self._refresh_materiales_label()
 
     def _on_installation_type_changed(self, value: str) -> None:
         self.project.active_installation_type = value or ""
         if self._base_template:
             self._base_template.installation_type = value or ""
 
-    def _load_active_assets(self) -> None:
-        self._materials_library = None
-        self._base_template = None
-        if self.project.active_library_path:
+    def _load_active_materiales(self) -> None:
+        self._materiales_doc = None
+        self._materiales_path = self.project.active_materiales_bd_path or ""
+        self._refresh_materiales_label()
+        if self._materiales_path:
             try:
-                self._materials_library = load_materials_library(self.project.active_library_path)
-            except MaterialsLibraryError:
-                self._materials_library = None
+                self._materiales_doc = load_materiales_bd(self._materiales_path)
+            except MaterialesBdError:
+                self._materiales_doc = None
+
+        self._base_template = None
         if self.project.active_template_path:
             try:
                 self._base_template = load_base_template(self.project.active_template_path)
@@ -366,8 +384,8 @@ class MainWindow(QMainWindow):
             except TemplateRepoError:
                 self._base_template = None
 
-    def _materials_library_default_dir(self) -> str:
-        base = Path(self._app_dir) / "data" / "libraries"
+    def _materials_bd_default_dir(self) -> str:
+        base = Path(self._app_dir) / "libs"
         base.mkdir(parents=True, exist_ok=True)
         return str(base)
 
@@ -376,58 +394,93 @@ class MainWindow(QMainWindow):
         base.mkdir(parents=True, exist_ok=True)
         return str(base)
 
-    def _load_materials_library_dialog(self) -> None:
+    def _new_materiales_doc(self) -> Dict:
+        return {
+            "schema_version": "1.0",
+            "kind": "material_library",
+            "meta": {"name": "Materiales", "created": "", "source": ""},
+            "conductors": [],
+            "containments": {"ducts": [], "trays": [], "epc": [], "bpc": []},
+            "rules": {},
+        }
+
+    def _open_materiales_bd(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Cargar librería de materiales",
-            self._materials_library_default_dir(),
-            "Material Library (*.json)",
+            "Abrir materiales_bd.lib",
+            self._materials_bd_default_dir(),
+            "materiales_bd.lib (materiales_bd.lib)",
         )
         if not path:
             return
+        if Path(path).name != "materiales_bd.lib":
+            QMessageBox.warning(self, "materiales_bd.lib", "Selecciona un archivo llamado exactamente materiales_bd.lib.")
+            return
         try:
-            self._materials_library = load_materials_library(path)
-            self.project.active_library_path = path
+            self._materiales_doc = load_materiales_bd(path)
+            self._materiales_path = path
+            self.project.active_materiales_bd_path = path
+            self._ensure_materiales_in_libraries(path)
+            self._refresh_materiales_label()
             self._sync_libraries_templates_dialog()
-        except MaterialsLibraryError as e:
-            QMessageBox.critical(self, "Librería de materiales", str(e))
+            self.materialsDbChanged.emit(path, self._materiales_doc)
+        except MaterialesBdError as e:
+            QMessageBox.critical(self, "materiales_bd.lib", str(e))
 
-    def _save_materials_library_dialog(self) -> None:
-        if not self.project.active_library_path:
-            self._save_materials_library_as_dialog()
+    def _open_materiales_editor(self) -> None:
+        self._open_libraries_templates_dialog()
+        if self._lib_tpl_dialog:
+            self._lib_tpl_dialog.tabs.setCurrentIndex(0)
+
+    def _save_materiales_bd(self) -> None:
+        if not self._materiales_path:
+            self._save_materiales_bd_as()
             return
         if self._lib_tpl_dialog:
-            lib = self._lib_tpl_dialog.get_library_from_ui()
-            self._materials_library = lib
-        if not self._materials_library:
-            self._materials_library = MaterialsLibrary()
+            self._materiales_doc = self._lib_tpl_dialog.get_materiales_doc()
+        if not self._materiales_doc:
+            self._materiales_doc = self._new_materiales_doc()
         try:
-            save_materials_library(self._materials_library, self.project.active_library_path)
-        except MaterialsLibraryError as e:
-            QMessageBox.critical(self, "Librería de materiales", str(e))
+            save_materiales_bd(self._materiales_path, self._materiales_doc)
+            self.materialsDbChanged.emit(self._materiales_path, self._materiales_doc)
+        except MaterialesBdError as e:
+            QMessageBox.critical(self, "materiales_bd.lib", str(e))
 
-    def _save_materials_library_as_dialog(self) -> None:
+    def _save_materiales_bd_as(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Guardar librería de materiales",
-            self._materials_library_default_dir(),
-            "Material Library (*.json)",
+            "Guardar materiales_bd.lib",
+            str(Path(self._materials_bd_default_dir()) / "materiales_bd.lib"),
+            "materiales_bd.lib (materiales_bd.lib)",
         )
         if not path:
             return
-        if not path.endswith(".json"):
-            path += ".json"
+        target = Path(path)
+        if target.name != "materiales_bd.lib":
+            target = target.parent / "materiales_bd.lib"
         if self._lib_tpl_dialog:
-            lib = self._lib_tpl_dialog.get_library_from_ui()
-            self._materials_library = lib
-        if not self._materials_library:
-            self._materials_library = MaterialsLibrary()
+            self._materiales_doc = self._lib_tpl_dialog.get_materiales_doc()
+        if not self._materiales_doc:
+            self._materiales_doc = self._new_materiales_doc()
         try:
-            save_materials_library(self._materials_library, path)
-            self.project.active_library_path = path
+            save_materiales_bd(str(target), self._materiales_doc)
+            self._materiales_path = str(target)
+            self.project.active_materiales_bd_path = self._materiales_path
+            self._ensure_materiales_in_libraries(self._materiales_path)
+            self._refresh_materiales_label()
             self._sync_libraries_templates_dialog()
-        except MaterialsLibraryError as e:
-            QMessageBox.critical(self, "Librería de materiales", str(e))
+            self.materialsDbChanged.emit(self._materiales_path, self._materiales_doc)
+        except MaterialesBdError as e:
+            QMessageBox.critical(self, "materiales_bd.lib", str(e))
+
+    def _ensure_materiales_in_libraries(self, path: str) -> None:
+        if not path:
+            return
+        for lr in self.project.libraries:
+            if str(lr.path) == str(path):
+                return
+        self.project.libraries.append(LibraryRef(path=path, enabled=True, priority=10))
+        self._eff = None
 
     def _load_base_template_dialog(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -450,14 +503,13 @@ class MainWindow(QMainWindow):
         if not self.project.active_template_path:
             self._save_base_template_as_dialog()
             return
+        install_type = self.project.active_installation_type
         if self._lib_tpl_dialog:
-            tpl = self._lib_tpl_dialog.get_template_from_ui()
-            if tpl:
-                self._base_template = tpl
-        if not self._base_template:
-            self._base_template = BaseTemplate(installation_type=self.project.active_installation_type)
+            install_type = self._lib_tpl_dialog.cmb_installation.currentText().strip() or install_type
+        self._base_template = BaseTemplate(installation_type=install_type, defaults={})
         try:
             save_base_template(self._base_template, self.project.active_template_path)
+            self._sync_libraries_templates_dialog()
         except TemplateRepoError as e:
             QMessageBox.critical(self, "Plantilla base", str(e))
 
@@ -472,12 +524,10 @@ class MainWindow(QMainWindow):
             return
         if not path.endswith(".json"):
             path += ".json"
+        install_type = self.project.active_installation_type
         if self._lib_tpl_dialog:
-            tpl = self._lib_tpl_dialog.get_template_from_ui()
-            if tpl:
-                self._base_template = tpl
-        if not self._base_template:
-            self._base_template = BaseTemplate(installation_type=self.project.active_installation_type)
+            install_type = self._lib_tpl_dialog.cmb_installation.currentText().strip() or install_type
+        self._base_template = BaseTemplate(installation_type=install_type, defaults={})
         try:
             save_base_template(self._base_template, path)
             self.project.active_template_path = path
@@ -485,6 +535,11 @@ class MainWindow(QMainWindow):
             self._sync_libraries_templates_dialog()
         except TemplateRepoError as e:
             QMessageBox.critical(self, "Plantilla base", str(e))
+
+    def _apply_base_template_to_project(self) -> None:
+        if self._lib_tpl_dialog:
+            self.project.active_installation_type = self._lib_tpl_dialog.cmb_installation.currentText().strip()
+        self._refresh_status()
 
     def _refresh_equipment_library_items(self) -> None:
         items_by_id: Dict[str, Dict] = {}

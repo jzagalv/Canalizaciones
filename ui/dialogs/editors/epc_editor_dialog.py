@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from PyQt5.QtGui import QDoubleValidator
+from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from PyQt5.QtWidgets import (
     QComboBox,
     QDialog,
@@ -28,31 +28,31 @@ class EPCEditorDialog(QDialog):
 
         self.ed_id = QLineEdit()
         self.ed_name = QLineEdit()
-        self.ed_type = QLineEdit("EPC")
-        self.ed_type.setReadOnly(True)
+
+        self.cmb_shape = QComboBox()
+        self.cmb_shape.setEditable(True)
+        self.cmb_shape.addItems(["rectangular"])
 
         self.ed_width = QLineEdit()
         self.ed_width.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
         self.ed_height = QLineEdit()
         self.ed_height.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
-
-        self.cmb_material = QComboBox()
-        self.cmb_material.setEditable(True)
-        self.cmb_material.addItems(["Galvanizado", "Aluminio", "Acero"])
-
         self.ed_max_fill = QLineEdit()
         self.ed_max_fill.setValidator(QDoubleValidator(0.0, 100.0, 2, self))
+        self.ed_max_layers = QLineEdit()
+        self.ed_max_layers.setValidator(QIntValidator(1, 999, self))
+        self.ed_material = QLineEdit()
+        self.ed_tags = QLineEdit()
 
-        self.ed_notes = QLineEdit()
-
-        form.addRow("Código/ID:", self.ed_id)
+        form.addRow("ID:", self.ed_id)
         form.addRow("Nombre:", self.ed_name)
-        form.addRow("Tipo:", self.ed_type)
-        form.addRow("Ancho útil (mm):", self.ed_width)
-        form.addRow("Alto (mm):", self.ed_height)
-        form.addRow("Material/acabado:", self.cmb_material)
-        form.addRow("% Ocupación permitido:", self.ed_max_fill)
-        form.addRow("Notas:", self.ed_notes)
+        form.addRow("Forma:", self.cmb_shape)
+        form.addRow("Ancho interno (mm):", self.ed_width)
+        form.addRow("Alto interno (mm):", self.ed_height)
+        form.addRow("% Ocupación:", self.ed_max_fill)
+        form.addRow("Máx. capas:", self.ed_max_layers)
+        form.addRow("Material:", self.ed_material)
+        form.addRow("Tags (coma):", self.ed_tags)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_accept)
@@ -65,11 +65,15 @@ class EPCEditorDialog(QDialog):
     def _load_data(self, data: Dict[str, Any]) -> None:
         self.ed_id.setText(str(data.get("id", "")))
         self.ed_name.setText(str(data.get("name", "")))
+        self.cmb_shape.setCurrentText(str(data.get("shape", "")))
         self.ed_width.setText(str(data.get("inner_width_mm", "")))
         self.ed_height.setText(str(data.get("inner_height_mm", "")))
-        self.cmb_material.setCurrentText(str(data.get("material", "")))
         self.ed_max_fill.setText(str(data.get("max_fill_percent", "")))
-        self.ed_notes.setText(str(data.get("notes", "")))
+        self.ed_max_layers.setText(str(data.get("max_layers", "")))
+        self.ed_material.setText(str(data.get("material", "") or ""))
+        tags = data.get("tags") or []
+        if isinstance(tags, list):
+            self.ed_tags.setText(", ".join([str(t) for t in tags]))
 
     def _read_float(self, widget: QLineEdit, label: str) -> Optional[float]:
         text = widget.text().strip()
@@ -77,50 +81,75 @@ class EPCEditorDialog(QDialog):
             QMessageBox.warning(self, "Validación", f"{label} es obligatorio.")
             return None
         try:
-            return float(text)
+            val = float(text)
         except Exception:
             QMessageBox.warning(self, "Validación", f"{label} debe ser numérico.")
             return None
+        if val <= 0:
+            QMessageBox.warning(self, "Validación", f"{label} debe ser > 0.")
+            return None
+        return val
 
-    def _read_float_optional(self, widget: QLineEdit, label: str) -> Optional[float]:
+    def _read_fill(self, widget: QLineEdit) -> Optional[float]:
+        val = self._read_float(widget, "% Ocupación")
+        if val is None:
+            return None
+        if val <= 0 or val > 100:
+            QMessageBox.warning(self, "Validación", "% Ocupación debe ser > 0 y <= 100.")
+            return None
+        return val
+
+    def _read_layers(self, widget: QLineEdit) -> Optional[int]:
         text = widget.text().strip()
         if not text:
+            QMessageBox.warning(self, "Validación", "Máx. capas es obligatorio.")
             return None
         try:
-            return float(text)
+            val = int(text)
         except Exception:
-            QMessageBox.warning(self, "Validación", f"{label} debe ser numérico.")
+            QMessageBox.warning(self, "Validación", "Máx. capas debe ser numérico.")
             return None
+        if val < 1:
+            QMessageBox.warning(self, "Validación", "Máx. capas debe ser >= 1.")
+            return None
+        return val
 
     def _on_accept(self) -> None:
         code = self.ed_id.text().strip()
         name = self.ed_name.text().strip()
         if not code or not name:
-            QMessageBox.warning(self, "Validación", "Código y nombre son obligatorios.")
+            QMessageBox.warning(self, "Validación", "ID y nombre son obligatorios.")
             return
         if code in self._existing_ids:
-            QMessageBox.warning(self, "Validación", "El código ya existe en esta categoría.")
+            QMessageBox.warning(self, "Validación", "El ID ya existe en EPC.")
             return
 
-        width = self._read_float(self.ed_width, "Ancho útil (mm)")
+        width = self._read_float(self.ed_width, "Ancho interno (mm)")
         if width is None:
             return
-        height = self._read_float(self.ed_height, "Alto (mm)")
+        height = self._read_float(self.ed_height, "Alto interno (mm)")
         if height is None:
             return
-        max_fill = self._read_float_optional(self.ed_max_fill, "% Ocupación permitido")
-        if max_fill is None and self.ed_max_fill.text().strip():
+        max_fill = self._read_fill(self.ed_max_fill)
+        if max_fill is None:
             return
+        max_layers = self._read_layers(self.ed_max_layers)
+        if max_layers is None:
+            return
+
+        tags = [t.strip() for t in self.ed_tags.text().split(",") if t.strip()]
+        material = self.ed_material.text().strip()
 
         self._result = {
             "id": code,
             "name": name,
-            "type": "EPC",
+            "shape": self.cmb_shape.currentText().strip(),
             "inner_width_mm": width,
             "inner_height_mm": height,
-            "material": self.cmb_material.currentText().strip(),
-            "max_fill_percent": max_fill if max_fill is not None else "",
-            "notes": self.ed_notes.text().strip(),
+            "max_fill_percent": max_fill,
+            "max_layers": max_layers,
+            "material": material if material else None,
+            "tags": tags,
         }
         self.accept()
 

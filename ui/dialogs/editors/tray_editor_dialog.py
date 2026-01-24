@@ -1,9 +1,9 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from PyQt5.QtGui import QDoubleValidator
+from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from PyQt5.QtWidgets import (
     QComboBox,
     QDialog,
@@ -15,10 +15,10 @@ from PyQt5.QtWidgets import (
 )
 
 
-class DuctEditorDialog(QDialog):
+class TrayEditorDialog(QDialog):
     def __init__(self, parent=None, data: Optional[Dict[str, Any]] = None, existing_ids: Optional[List[str]] = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Editar ducto")
+        self.setWindowTitle("Editar bandeja")
         self._existing_ids = set(existing_ids or [])
         self._result: Optional[Dict[str, Any]] = None
 
@@ -28,31 +28,29 @@ class DuctEditorDialog(QDialog):
 
         self.ed_id = QLineEdit()
         self.ed_name = QLineEdit()
-
         self.cmb_shape = QComboBox()
         self.cmb_shape.setEditable(True)
-        self.cmb_shape.addItems(["circular", "rectangular"])
+        self.cmb_shape.addItems(["rectangular"])
 
-        self.ed_nominal = QLineEdit()
-        self.ed_inner_d = QLineEdit()
-        self.ed_inner_d.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
+        self.ed_width = QLineEdit()
+        self.ed_width.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
+        self.ed_height = QLineEdit()
+        self.ed_height.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
         self.ed_max_fill = QLineEdit()
         self.ed_max_fill.setValidator(QDoubleValidator(0.0, 100.0, 2, self))
-
+        self.ed_max_layers = QLineEdit()
+        self.ed_max_layers.setValidator(QIntValidator(1, 999, self))
         self.ed_material = QLineEdit()
-        self.ed_standard = QLineEdit()
-        self.ed_manufacturer = QLineEdit()
         self.ed_tags = QLineEdit()
 
         form.addRow("ID:", self.ed_id)
         form.addRow("Nombre:", self.ed_name)
         form.addRow("Forma:", self.cmb_shape)
-        form.addRow("Nominal:", self.ed_nominal)
-        form.addRow("Diámetro interno (mm):", self.ed_inner_d)
+        form.addRow("Ancho interno (mm):", self.ed_width)
+        form.addRow("Alto interno (mm):", self.ed_height)
         form.addRow("% Ocupación:", self.ed_max_fill)
+        form.addRow("Máx. capas:", self.ed_max_layers)
         form.addRow("Material:", self.ed_material)
-        form.addRow("Norma:", self.ed_standard)
-        form.addRow("Fabricante:", self.ed_manufacturer)
         form.addRow("Tags (coma):", self.ed_tags)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -67,12 +65,11 @@ class DuctEditorDialog(QDialog):
         self.ed_id.setText(str(data.get("id", "")))
         self.ed_name.setText(str(data.get("name", "")))
         self.cmb_shape.setCurrentText(str(data.get("shape", "")))
-        self.ed_nominal.setText(str(data.get("nominal", "")))
-        self.ed_inner_d.setText(str(data.get("inner_diameter_mm", "")))
+        self.ed_width.setText(str(data.get("inner_width_mm", "")))
+        self.ed_height.setText(str(data.get("inner_height_mm", "")))
         self.ed_max_fill.setText(str(data.get("max_fill_percent", "")))
-        self.ed_material.setText(str(data.get("material", "") or ""))
-        self.ed_standard.setText(str(data.get("standard", "") or ""))
-        self.ed_manufacturer.setText(str(data.get("manufacturer", "") or ""))
+        self.ed_max_layers.setText(str(data.get("max_layers", "")))
+        self.ed_material.setText("" if data.get("material") is None else str(data.get("material", "")))
         tags = data.get("tags") or []
         if isinstance(tags, list):
             self.ed_tags.setText(", ".join([str(t) for t in tags]))
@@ -101,6 +98,21 @@ class DuctEditorDialog(QDialog):
             return None
         return val
 
+    def _read_layers(self, widget: QLineEdit) -> Optional[int]:
+        text = widget.text().strip()
+        if not text:
+            QMessageBox.warning(self, "Validación", "Máx. capas es obligatorio.")
+            return None
+        try:
+            val = int(text)
+        except Exception:
+            QMessageBox.warning(self, "Validación", "Máx. capas debe ser numérico.")
+            return None
+        if val < 1:
+            QMessageBox.warning(self, "Validación", "Máx. capas debe ser >= 1.")
+            return None
+        return val
+
     def _on_accept(self) -> None:
         code = self.ed_id.text().strip()
         name = self.ed_name.text().strip()
@@ -108,31 +120,33 @@ class DuctEditorDialog(QDialog):
             QMessageBox.warning(self, "Validación", "ID y nombre son obligatorios.")
             return
         if code in self._existing_ids:
-            QMessageBox.warning(self, "Validación", "El ID ya existe en ductos.")
+            QMessageBox.warning(self, "Validación", "El ID ya existe en bandejas.")
             return
-
-        inner_d = self._read_float(self.ed_inner_d, "Diámetro interno (mm)")
-        if inner_d is None:
+        width = self._read_float(self.ed_width, "Ancho interno (mm)")
+        if width is None:
+            return
+        height = self._read_float(self.ed_height, "Alto interno (mm)")
+        if height is None:
             return
         max_fill = self._read_fill(self.ed_max_fill)
         if max_fill is None:
             return
+        max_layers = self._read_layers(self.ed_max_layers)
+        if max_layers is None:
+            return
 
         tags = [t.strip() for t in self.ed_tags.text().split(",") if t.strip()]
-        manufacturer = self.ed_manufacturer.text().strip()
         material = self.ed_material.text().strip()
-        standard = self.ed_standard.text().strip()
 
         self._result = {
             "id": code,
             "name": name,
             "shape": self.cmb_shape.currentText().strip(),
-            "nominal": self.ed_nominal.text().strip(),
-            "inner_diameter_mm": inner_d,
+            "inner_width_mm": width,
+            "inner_height_mm": height,
             "max_fill_percent": max_fill,
+            "max_layers": max_layers,
             "material": material if material else None,
-            "standard": standard if standard else None,
-            "manufacturer": manufacturer if manufacturer else None,
             "tags": tags,
         }
         self.accept()

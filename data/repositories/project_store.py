@@ -28,6 +28,7 @@ def load_project(path: str) -> Project:
         project_version=data.get('project_version','1.0'),
         name=data.get('name','Proyecto'),
         active_profile=data.get('active_profile','ss_conventional'),
+        active_materiales_bd_path=data.get('active_materiales_bd_path',''),
         active_library_path=data.get('active_library_path',''),
         active_template_path=data.get('active_template_path',''),
         active_installation_type=data.get('active_installation_type',''),

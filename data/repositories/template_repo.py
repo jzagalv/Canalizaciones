@@ -15,11 +15,11 @@ class TemplateRepoError(Exception):
 def load_base_template(path: str) -> BaseTemplate:
     p = Path(path)
     if not p.exists():
-        raise TemplateRepoError(f"No existe la plantilla: {path}")
+        raise TemplateRepoError(f"Template file not found: {path}")
     try:
         data: Dict[str, Any] = json.loads(p.read_text(encoding="utf-8"))
     except Exception as e:
-        raise TemplateRepoError(f"JSON invalido en {path}: {e}")
+        raise TemplateRepoError(f"Invalid JSON in {path}: {e}")
     return BaseTemplate.from_dict(data)
 
 

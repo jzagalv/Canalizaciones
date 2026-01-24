@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -15,10 +15,10 @@ from PyQt5.QtWidgets import (
 )
 
 
-class DuctEditorDialog(QDialog):
+class ConductorEditorDialog(QDialog):
     def __init__(self, parent=None, data: Optional[Dict[str, Any]] = None, existing_ids: Optional[List[str]] = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Editar ducto")
+        self.setWindowTitle("Editar conductor")
         self._existing_ids = set(existing_ids or [])
         self._result: Optional[Dict[str, Any]] = None
 
@@ -28,31 +28,22 @@ class DuctEditorDialog(QDialog):
 
         self.ed_id = QLineEdit()
         self.ed_name = QLineEdit()
+        self.cmb_service = QComboBox()
+        self.cmb_service.setEditable(True)
+        self.cmb_service.addItems(["power", "control", "communications", "comms"])
 
-        self.cmb_shape = QComboBox()
-        self.cmb_shape.setEditable(True)
-        self.cmb_shape.addItems(["circular", "rectangular"])
-
-        self.ed_nominal = QLineEdit()
-        self.ed_inner_d = QLineEdit()
-        self.ed_inner_d.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
-        self.ed_max_fill = QLineEdit()
-        self.ed_max_fill.setValidator(QDoubleValidator(0.0, 100.0, 2, self))
-
-        self.ed_material = QLineEdit()
-        self.ed_standard = QLineEdit()
+        self.ed_outer_d = QLineEdit()
+        self.ed_outer_d.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
         self.ed_manufacturer = QLineEdit()
+        self.ed_model = QLineEdit()
         self.ed_tags = QLineEdit()
 
         form.addRow("ID:", self.ed_id)
         form.addRow("Nombre:", self.ed_name)
-        form.addRow("Forma:", self.cmb_shape)
-        form.addRow("Nominal:", self.ed_nominal)
-        form.addRow("Diámetro interno (mm):", self.ed_inner_d)
-        form.addRow("% Ocupación:", self.ed_max_fill)
-        form.addRow("Material:", self.ed_material)
-        form.addRow("Norma:", self.ed_standard)
+        form.addRow("Servicio:", self.cmb_service)
+        form.addRow("Diámetro exterior (mm):", self.ed_outer_d)
         form.addRow("Fabricante:", self.ed_manufacturer)
+        form.addRow("Modelo:", self.ed_model)
         form.addRow("Tags (coma):", self.ed_tags)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -66,13 +57,10 @@ class DuctEditorDialog(QDialog):
     def _load_data(self, data: Dict[str, Any]) -> None:
         self.ed_id.setText(str(data.get("id", "")))
         self.ed_name.setText(str(data.get("name", "")))
-        self.cmb_shape.setCurrentText(str(data.get("shape", "")))
-        self.ed_nominal.setText(str(data.get("nominal", "")))
-        self.ed_inner_d.setText(str(data.get("inner_diameter_mm", "")))
-        self.ed_max_fill.setText(str(data.get("max_fill_percent", "")))
-        self.ed_material.setText(str(data.get("material", "") or ""))
-        self.ed_standard.setText(str(data.get("standard", "") or ""))
-        self.ed_manufacturer.setText(str(data.get("manufacturer", "") or ""))
+        self.cmb_service.setCurrentText(str(data.get("service", "")))
+        self.ed_outer_d.setText(str(data.get("outer_diameter_mm", "")))
+        self.ed_manufacturer.setText("" if data.get("manufacturer") is None else str(data.get("manufacturer", "")))
+        self.ed_model.setText("" if data.get("model") is None else str(data.get("model", "")))
         tags = data.get("tags") or []
         if isinstance(tags, list):
             self.ed_tags.setText(", ".join([str(t) for t in tags]))
@@ -92,15 +80,6 @@ class DuctEditorDialog(QDialog):
             return None
         return val
 
-    def _read_fill(self, widget: QLineEdit) -> Optional[float]:
-        val = self._read_float(widget, "% Ocupación")
-        if val is None:
-            return None
-        if val <= 0 or val > 100:
-            QMessageBox.warning(self, "Validación", "% Ocupación debe ser > 0 y <= 100.")
-            return None
-        return val
-
     def _on_accept(self) -> None:
         code = self.ed_id.text().strip()
         name = self.ed_name.text().strip()
@@ -108,31 +87,23 @@ class DuctEditorDialog(QDialog):
             QMessageBox.warning(self, "Validación", "ID y nombre son obligatorios.")
             return
         if code in self._existing_ids:
-            QMessageBox.warning(self, "Validación", "El ID ya existe en ductos.")
+            QMessageBox.warning(self, "Validación", "El ID ya existe en conductores.")
             return
-
-        inner_d = self._read_float(self.ed_inner_d, "Diámetro interno (mm)")
-        if inner_d is None:
-            return
-        max_fill = self._read_fill(self.ed_max_fill)
-        if max_fill is None:
+        outer_d = self._read_float(self.ed_outer_d, "Diámetro exterior (mm)")
+        if outer_d is None:
             return
 
         tags = [t.strip() for t in self.ed_tags.text().split(",") if t.strip()]
-        manufacturer = self.ed_manufacturer.text().strip()
-        material = self.ed_material.text().strip()
-        standard = self.ed_standard.text().strip()
 
+        manufacturer = self.ed_manufacturer.text().strip()
+        model = self.ed_model.text().strip()
         self._result = {
             "id": code,
             "name": name,
-            "shape": self.cmb_shape.currentText().strip(),
-            "nominal": self.ed_nominal.text().strip(),
-            "inner_diameter_mm": inner_d,
-            "max_fill_percent": max_fill,
-            "material": material if material else None,
-            "standard": standard if standard else None,
+            "service": self.cmb_service.currentText().strip(),
+            "outer_diameter_mm": outer_d,
             "manufacturer": manufacturer if manufacturer else None,
+            "model": model if model else None,
             "tags": tags,
         }
         self.accept()

@@ -1,4 +1,9 @@
-﻿## 0.5.0 - 2026-01-23
+﻿## 0.6.0 - 2026-01-23
+- Added: Administrador de materiales_bd.lib (ventana flotante).
+- Added: Editor CRUD por categoría (conductors/ducts/trays/epc/bpc) con diálogos específicos.
+- Changed: Menú "Librerías" con acciones para materiales_bd.lib.
+
+## 0.5.0 - 2026-01-23
 - Added: Ventana "Gestión de Librerías y Plantillas".
 - Added: Editor CRUD de materiales por categoría con diálogos específicos.
 - Changed: Menú "Herramientas" con acceso a la nueva ventana.
@@ -54,4 +59,5 @@
   - Exportación del canvas a PNG y PDF para adjuntar a informes.
 - Fix: CanvasTab completado (métodos faltantes y conexiones) y toolbar consolidada.
 - Fix: CanvasView (DnD) y CanvasItems (imports/compatibilidad NodeData) para evitar crashes.
+
 

@@ -18,8 +18,8 @@ python app/main.py
    - `libs/materiales_bd.lib`
    - `libs/plantillas_bd.lib`
    - `libs/equipment_library.lib`
-3. En **Herramientas > Librerías y Plantillas**, carga tu librería de materiales y plantilla base.
-   - Define el **tipo de instalación** y guarda la plantilla base si corresponde.
+3. En **Librerías > Administrador de Librerías y Plantillas**, carga/edita `materiales_bd.lib` y define la plantilla base.
+   - Define el **tipo de instalación** y aplica la plantilla si corresponde.
 4. En la pestaña **Canvas**, usa la **Biblioteca** lateral para arrastrar Equipos/GAP/Cámaras al canvas.
    - Opcional: en el Canvas puedes cargar un plano como fondo (botón **Cargar plano**) para posicionar equipos y canalizaciones sobre la imagen.
 5. Conecta nodos con el botón **Conectar tramo**.
@@ -34,26 +34,33 @@ python app/main.py
 
 En **Canvas**, busca el elemento en la **Biblioteca** (panel izquierdo), arrástralo y suéltalo sobre el canvas. No hay botones de inserción manual.
 
-## Gestión de librerías y plantillas
+## Gestión de materiales_bd.lib y plantillas
 
-Desde **Herramientas > Librerías y Plantillas**:
-- **Librerías de materiales**: carga/guarda librerías JSON y edita ítems por categoría.
-- **Plantillas**: carga/guarda plantillas base y define el tipo de instalación.
+Desde **Librerías > Administrador de Librerías y Plantillas**:
+- **materiales_bd.lib**: carga/guarda el archivo y edita ítems por categoría (conductors/ducts/trays/epc/bpc).
+- **Plantillas base**: carga/guarda plantillas base y define el tipo de instalación.
 
-### Formato JSON (librerías de materiales)
+### Formato JSON (materiales_bd.lib)
 
-`materials_library.json`:
+`materiales_bd.lib`:
 
 ```json
 {
-  "schema_version": 1,
-  "name": "Mi Librería",
-  "items": {
-    "cables": [],
+  "schema_version": "1.0",
+  "kind": "material_library",
+  "meta": {
+    "name": "Materiales",
+    "created": "YYYY-MM-DD",
+    "source": "BD.xlsx"
+  },
+  "conductors": [],
+  "containments": {
     "ducts": [],
+    "trays": [],
     "epc": [],
     "bpc": []
-  }
+  },
+  "rules": {}
 }
 ```
 
@@ -72,9 +79,9 @@ Desde **Herramientas > Librerías y Plantillas**:
 ### Extender tipos de material
 
 Para agregar un nuevo tipo:
-1. Crea una nueva categoría en `MaterialsLibrary.items`.
-2. Agrega columnas y un diálogo de edición dedicado en UI.
-3. Actualiza el editor para mostrar/validar el nuevo tipo.
+1. Agrega la nueva lista dentro de `containments` o como raíz si aplica.
+2. Crea su diálogo de edición y columnas en el editor.
+3. Actualiza el mapeo de categorías en el editor para mostrar/validar el nuevo tipo.
 
 ## Canvas: plano de fondo (para informes)
 

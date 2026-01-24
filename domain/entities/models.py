@@ -17,6 +17,7 @@ class Project:
     project_version: str = '1.0'
     name: str = 'Nuevo proyecto'
     active_profile: str = 'ss_conventional'
+    active_materiales_bd_path: str = ''
     active_library_path: str = ''
     active_template_path: str = ''
     active_installation_type: str = ''

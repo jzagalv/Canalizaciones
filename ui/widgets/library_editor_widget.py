@@ -1,39 +1,41 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtCore import pyqtSignal, Qt, QPoint
 from PyQt5.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
+    QMenu,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
     QMessageBox,
 )
 
-from domain.libraries.materials_models import MaterialsLibrary
-from ui.dialogs.editors.cable_editor_dialog import CableEditorDialog
+from ui.dialogs.editors.conductor_editor_dialog import ConductorEditorDialog
 from ui.dialogs.editors.duct_editor_dialog import DuctEditorDialog
+from ui.dialogs.editors.tray_editor_dialog import TrayEditorDialog
 from ui.dialogs.editors.epc_editor_dialog import EPCEditorDialog
 from ui.dialogs.editors.bpc_editor_dialog import BPCEditorDialog
 
 
 class LibraryEditorWidget(QWidget):
-    library_changed = pyqtSignal(object)  # MaterialsLibrary
+    materials_changed = pyqtSignal(dict)  # materiales_bd dict
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self._library = MaterialsLibrary()
+        self._doc: Dict[str, Any] = {}
         self._categories: List[Tuple[str, str]] = [
-            ("cables", "Cables"),
+            ("conductors", "Conductores"),
             ("ducts", "Ductos"),
+            ("trays", "Bandejas"),
             ("epc", "EPC"),
             ("bpc", "BPC"),
         ]
@@ -43,13 +45,14 @@ class LibraryEditorWidget(QWidget):
         # Categories
         left = QVBoxLayout()
         left.addWidget(QLabel("Categorías"))
-        self.lst_categories = QListWidget()
+        self.tree = QTreeWidget()
+        self.tree.setHeaderHidden(True)
         for key, label in self._categories:
-            it = QListWidgetItem(label)
-            it.setData(Qt.UserRole, key)
-            self.lst_categories.addItem(it)
-        self.lst_categories.currentRowChanged.connect(self._on_category_changed)
-        left.addWidget(self.lst_categories, 1)
+            it = QTreeWidgetItem([label])
+            it.setData(0, Qt.UserRole, key)
+            self.tree.addTopLevelItem(it)
+        self.tree.currentItemChanged.connect(self._on_category_changed)
+        left.addWidget(self.tree, 1)
         root.addLayout(left, 1)
 
         # Table
@@ -59,6 +62,8 @@ class LibraryEditorWidget(QWidget):
         self.tbl.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tbl.setSelectionMode(QAbstractItemView.SingleSelection)
         self.tbl.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.tbl.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tbl.customContextMenuRequested.connect(self._show_context_menu)
         mid.addWidget(self.tbl, 1)
         root.addLayout(mid, 3)
 
@@ -84,67 +89,78 @@ class LibraryEditorWidget(QWidget):
         right.addStretch(1)
         root.addLayout(right, 1)
 
-        if self.lst_categories.count() > 0:
-            self.lst_categories.setCurrentRow(0)
+        if self.tree.topLevelItemCount() > 0:
+            self.tree.setCurrentItem(self.tree.topLevelItem(0))
 
-    def set_library(self, library: MaterialsLibrary) -> None:
-        self._library = library or MaterialsLibrary()
+    def set_document(self, doc: Dict[str, Any]) -> None:
+        self._doc = doc or {}
         self._refresh_table()
 
-    def library(self) -> MaterialsLibrary:
-        return self._library
+    def document(self) -> Dict[str, Any]:
+        return self._doc
 
     def _current_category(self) -> str:
-        it = self.lst_categories.currentItem()
+        it = self.tree.currentItem()
         if not it:
-            return "cables"
-        return str(it.data(Qt.UserRole) or "cables")
+            return "conductors"
+        return str(it.data(0, Qt.UserRole) or "conductors")
 
     def _columns_for(self, category: str) -> List[Tuple[str, str]]:
+        if category == "conductors":
+            return [
+                ("id", "ID"),
+                ("name", "Nombre"),
+                ("service", "Servicio"),
+                ("outer_diameter_mm", "Ø ext (mm)"),
+                ("manufacturer", "Fabricante"),
+                ("model", "Modelo"),
+                ("tags", "Tags"),
+            ]
         if category == "ducts":
             return [
-                ("id", "Código"),
+                ("id", "ID"),
                 ("name", "Nombre"),
-                ("material", "Material"),
+                ("shape", "Forma"),
+                ("nominal", "Nominal"),
                 ("inner_diameter_mm", "Ø int (mm)"),
-                ("outer_diameter_mm", "Ø ext (mm)"),
-                ("duct_type", "Tipo"),
-                ("notes", "Notas"),
-            ]
-        if category in ("epc", "bpc"):
-            return [
-                ("id", "Código"),
-                ("name", "Nombre"),
-                ("type", "Tipo"),
-                ("inner_width_mm", "Ancho útil (mm)"),
-                ("inner_height_mm", "Alto (mm)"),
-                ("material", "Material"),
                 ("max_fill_percent", "% Ocupación"),
-                ("notes", "Notas"),
+                ("material", "Material"),
+                ("standard", "Norma"),
+                ("manufacturer", "Fabricante"),
+                ("tags", "Tags"),
             ]
         return [
-            ("id", "Código"),
+            ("id", "ID"),
             ("name", "Nombre"),
-            ("type", "Tipo"),
-            ("kv", "Tensión (kV)"),
-            ("section_mm2", "Sección (mm²)"),
-            ("outer_diameter_mm", "Ø ext (mm)"),
-            ("weight_kg_m", "Peso (kg/m)"),
-            ("notes", "Notas"),
+            ("shape", "Forma"),
+            ("inner_width_mm", "Ancho (mm)"),
+            ("inner_height_mm", "Alto (mm)"),
+            ("max_fill_percent", "% Ocupación"),
+            ("max_layers", "Capas"),
+            ("material", "Material"),
+            ("tags", "Tags"),
         ]
 
-    def _get_items(self, category: str) -> List[Dict[str, Any]]:
-        return list(self._library.items.get(category) or [])
+    def _category_items(self, category: str) -> List[Dict[str, Any]]:
+        if category == "conductors":
+            return list(self._doc.get("conductors") or [])
+        cont = self._doc.get("containments") or {}
+        return list(cont.get(category) or [])
 
-    def _set_items(self, category: str, items: List[Dict[str, Any]]) -> None:
-        self._library.items[category] = list(items)
+    def _set_category_items(self, category: str, items: List[Dict[str, Any]]) -> None:
+        if category == "conductors":
+            self._doc["conductors"] = list(items)
+        else:
+            cont = self._doc.get("containments") or {}
+            cont[category] = list(items)
+            self._doc["containments"] = cont
         self._refresh_table()
-        self.library_changed.emit(self._library)
+        self.materials_changed.emit(self._doc)
 
     def _refresh_table(self) -> None:
         category = self._current_category()
         cols = self._columns_for(category)
-        items = self._get_items(category)
+        items = self._category_items(category)
 
         self.tbl.setColumnCount(len(cols))
         self.tbl.setHorizontalHeaderLabels([c[1] for c in cols])
@@ -155,11 +171,13 @@ class LibraryEditorWidget(QWidget):
             self.tbl.insertRow(row)
             for c_idx, (key, _) in enumerate(cols):
                 val = it.get(key, "")
+                if isinstance(val, list):
+                    val = ", ".join([str(v) for v in val])
                 self.tbl.setItem(row, c_idx, QTableWidgetItem(str(val)))
 
     def _existing_ids(self, category: str, exclude_id: Optional[str] = None) -> List[str]:
         ids = []
-        for it in self._get_items(category):
+        for it in self._category_items(category):
             cid = str(it.get("id") or "").strip()
             if not cid:
                 continue
@@ -174,15 +192,16 @@ class LibraryEditorWidget(QWidget):
 
     def _edit_dialog_for(self, category: str, data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         existing_ids = self._existing_ids(category, exclude_id=(data or {}).get("id"))
-        dlg = None
         if category == "ducts":
             dlg = DuctEditorDialog(data=data, existing_ids=existing_ids, parent=self)
+        elif category == "trays":
+            dlg = TrayEditorDialog(data=data, existing_ids=existing_ids, parent=self)
         elif category == "epc":
             dlg = EPCEditorDialog(data=data, existing_ids=existing_ids, parent=self)
         elif category == "bpc":
             dlg = BPCEditorDialog(data=data, existing_ids=existing_ids, parent=self)
         else:
-            dlg = CableEditorDialog(data=data, existing_ids=existing_ids, parent=self)
+            dlg = ConductorEditorDialog(data=data, existing_ids=existing_ids, parent=self)
         if dlg.exec_() != dlg.Accepted:
             return None
         return dlg.get_data()
@@ -192,9 +211,9 @@ class LibraryEditorWidget(QWidget):
         data = self._edit_dialog_for(category)
         if not data:
             return
-        items = self._get_items(category)
+        items = self._category_items(category)
         items.append(data)
-        self._set_items(category, items)
+        self._set_category_items(category, items)
 
     def _edit_item(self) -> None:
         category = self._current_category()
@@ -202,32 +221,32 @@ class LibraryEditorWidget(QWidget):
         if row < 0:
             QMessageBox.information(self, "Editar", "Selecciona un elemento para editar.")
             return
-        items = self._get_items(category)
+        items = self._category_items(category)
         if row >= len(items):
             return
         updated = self._edit_dialog_for(category, data=dict(items[row]))
         if not updated:
             return
         items[row] = updated
-        self._set_items(category, items)
+        self._set_category_items(category, items)
 
     def _delete_item(self) -> None:
         category = self._current_category()
         row = self._selected_row()
         if row < 0:
             return
-        items = self._get_items(category)
+        items = self._category_items(category)
         if row >= len(items):
             return
         items.pop(row)
-        self._set_items(category, items)
+        self._set_category_items(category, items)
 
     def _duplicate_item(self) -> None:
         category = self._current_category()
         row = self._selected_row()
         if row < 0:
             return
-        items = self._get_items(category)
+        items = self._category_items(category)
         if row >= len(items):
             return
         src = dict(items[row])
@@ -238,7 +257,25 @@ class LibraryEditorWidget(QWidget):
         if not updated:
             return
         items.append(updated)
-        self._set_items(category, items)
+        self._set_category_items(category, items)
 
     def _on_category_changed(self, *_):
         self._refresh_table()
+
+    def _show_context_menu(self, pos: QPoint) -> None:
+        if self.tbl.rowCount() == 0:
+            return
+        row = self.tbl.indexAt(pos).row()
+        if row >= 0:
+            self.tbl.selectRow(row)
+        menu = QMenu(self)
+        act_edit = menu.addAction("Editar")
+        act_del = menu.addAction("Eliminar")
+        act_dup = menu.addAction("Duplicar")
+        action = menu.exec_(self.tbl.viewport().mapToGlobal(pos))
+        if action == act_edit:
+            self._edit_item()
+        elif action == act_del:
+            self._delete_item()
+        elif action == act_dup:
+            self._duplicate_item()

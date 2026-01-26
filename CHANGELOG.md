@@ -1,3 +1,8 @@
+## 0.6.6 - 2026-01-25
+- Fixed: detalle de tramo mantiene lista de circuitos tras recalcular
+- Changed: Recalcular opera en modo manual-only (sin recomendaciones)
+- Changed: cache de c?lculo no se invalida por preview/UI
+
 ## 0.6.5 - 2026-01-25
 - Added: color coding for utilization (green/amber/red) across canvas/dialog/panel
 - Fixed: enforce max 2 decimals for calculated values shown in UI

@@ -8,7 +8,7 @@ Project persistence and business rules belong to the scene/controller.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import QPointF, Qt, pyqtSignal, QObject, QLineF, QRectF
 from PyQt5.QtGui import QBrush, QPen, QColor, QPainter, QFont, QFontMetricsF
@@ -221,6 +221,7 @@ class EdgeItem(QGraphicsLineItem):
         self.runs = runs or []
         self.status = "ok"
         self.props = {}
+        self._fill_info: Dict[str, object] = {}
         self.signals = EdgeItemSignals()
 
         self.setZValue(-1)
@@ -263,13 +264,13 @@ class EdgeItem(QGraphicsLineItem):
         if not size and self.runs:
             size = str(self.runs[0].get("catalog_id") or "").strip()
         size_text = size or "?"
-        fill_percent = props.get("fill_percent")
-        max_allowed = props.get("fill_max_percent")
+        fill_percent = self._fill_info.get("fill_percent", props.get("fill_percent"))
+        max_allowed = self._fill_info.get("fill_max_percent", props.get("fill_max_percent"))
         if fill_percent is None:
             fill_line = "Utilizacion: (Recalcular)"
             fill_color = QColor("#9ca3af")
         else:
-            fill_state = props.get("fill_state") or util_color(fill_percent, max_allowed)
+            fill_state = self._fill_info.get("fill_state", props.get("fill_state")) or util_color(fill_percent, max_allowed)
             fill_line = f"Utilizacion: {fmt_percent(fill_percent)}"
             fill_color = {
                 "ok": QColor("#16a34a"),
@@ -288,6 +289,10 @@ class EdgeItem(QGraphicsLineItem):
         self.badge.set_lines(lines)
         self._apply_style()
 
+    def set_fill_info(self, fill_info: Dict[str, object]) -> None:
+        self._fill_info = dict(fill_info or {})
+        self.set_status(self.status)
+
     def update_meta(
         self,
         containment_kind: Optional[str] = None,
@@ -304,7 +309,7 @@ class EdgeItem(QGraphicsLineItem):
 
     def _apply_style(self) -> None:
         pen = QPen(QColor("#6b7280"), 2)
-        fill_over = bool((self.props or {}).get("fill_over"))
+        fill_over = bool(self._fill_info.get("fill_over", (self.props or {}).get("fill_over")))
         if self.status == "error":
             pen = QPen(QColor("#ef4444"), 3)
         elif self.status == "warn" or fill_over:

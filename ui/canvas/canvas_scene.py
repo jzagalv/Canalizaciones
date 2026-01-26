@@ -66,6 +66,7 @@ class CanvasScene(QGraphicsScene):
 
         self._background_item: Optional[QGraphicsPixmapItem] = None
         self._circuits_by_edge: Optional[Dict[str, List[str]]] = None
+        self._fill_results: Dict[str, Dict[str, object]] = {}
 
         self.selectionChanged.connect(self._emit_selection_snapshot)
 
@@ -81,6 +82,15 @@ class CanvasScene(QGraphicsScene):
             return None
         return list(self._circuits_by_edge.get(str(edge_id), []))
 
+    def set_edge_fill_results(self, edge_id: str, fill_result: Dict[str, object]) -> None:
+        self._fill_results[str(edge_id)] = dict(fill_result or {})
+        edge = self._edges_by_id.get(str(edge_id))
+        if edge:
+            edge.set_fill_info(self._fill_results.get(str(edge_id), {}))
+
+    def get_edge_fill_results(self, edge_id: str) -> Optional[Dict[str, object]]:
+        return self._fill_results.get(str(edge_id))
+
     # -------------------- Project canvas --------------------
     def set_project_canvas(self, canvas: Dict) -> None:
         """Load a canvas dict (as stored in Project.canvas) into the scene."""
@@ -89,6 +99,7 @@ class CanvasScene(QGraphicsScene):
         self._edges_by_id.clear()
         self._background_item = None
         self._circuits_by_edge = None
+        self._fill_results = {}
 
         base = {
             "nodes": [],

@@ -141,12 +141,12 @@ class CanvasTab(QWidget):
         self._sync_library_usage_from_canvas()
         self._refresh_detail_panel()
 
-    def set_edge_statuses(self, solutions: Dict[str, Dict]) -> None:
-        # solutions: edge_id -> {status, badge}
-        for edge_id, sol in (solutions or {}).items():
-            status = sol.get("status", "none")
-            badge = sol.get("badge", "")
-            self.scene.set_edge_status(edge_id, status, badge)
+    def set_edge_statuses(self, fill_results: Dict[str, Dict]) -> None:
+        # fill_results: edge_id -> {status}
+        for edge_id, sol in (fill_results or {}).items():
+            status = str(sol.get("status") or "OK")
+            status_norm = "error" if status.strip().lower() == "no cumple" else "ok"
+            self.scene.set_edge_status(edge_id, status_norm, "")
         self._refresh_detail_panel()
 
     # ---------------- Actions: nodes/edges ----------------
@@ -177,13 +177,14 @@ class CanvasTab(QWidget):
             return
         edge_id = str(payload.get("id") or "")
         props = self._edge_props(edge_id)
-        fill_percent = props.get("fill_percent")
-        max_fill = props.get("fill_max_percent")
+        fill_info = self.scene.get_edge_fill_results(edge_id) or {}
+        fill_percent = fill_info.get("fill_percent", props.get("fill_percent"))
+        max_fill = fill_info.get("fill_max_percent", props.get("fill_max_percent"))
         if fill_percent is None:
             self.lbl_detail_fill.setText("Ocupacion: (Recalcular)")
             self.lbl_detail_fill.setStyleSheet("color: #9ca3af;")
             return
-        fill_state = props.get("fill_state") or util_color(fill_percent, max_fill)
+        fill_state = fill_info.get("fill_state", props.get("fill_state")) or util_color(fill_percent, max_fill)
         if max_fill and float(max_fill) > 0:
             text = f"Ocupacion: {fmt_percent(fill_percent)} (max {fmt_percent(max_fill)})"
         else:

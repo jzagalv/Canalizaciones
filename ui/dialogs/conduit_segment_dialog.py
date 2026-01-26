@@ -76,6 +76,7 @@ class ConduitSegmentDialog(QDialog):
         self._setting_spacing = False
         self._loading_segment = False
         self._preview_dirty = False
+        self._project = None
 
         self._size_options = {
             "Ducto": ['1"', '2"', '3"', '4"'],
@@ -216,6 +217,10 @@ class ConduitSegmentDialog(QDialog):
         self._reload_sizes_for_type(self.cmb_type.currentText().strip())
         self._update_type_controls_visibility(self.cmb_type.currentText().strip())
 
+    def set_project(self, project) -> None:
+        self._project = project
+        self._refresh_circuits_list()
+
     def set_segment(self, segment_item) -> None:
         self._loading_segment = True
         self._segment = segment_item if self._is_segment_alive(segment_item) else None
@@ -284,20 +289,22 @@ class ConduitSegmentDialog(QDialog):
         self.lst_circuits.clear()
         if not self._is_segment_alive(self._segment):
             return
-        scene = self._segment.scene()
-        getter = getattr(scene, "get_circuit_ids_for_edge", None) if scene is not None else None
-        if not callable(getter):
-            self._set_circuits_placeholder("Recalcular para ver los circuitos que pasan por este tramo")
+        calc = getattr(self._project, "_calc", None) if self._project is not None else None
+        edge_to_circuits = calc.get("edge_to_circuits") if isinstance(calc, dict) else None
+        if not isinstance(edge_to_circuits, dict):
+            self._set_circuits_placeholder("Ejecuta Recalcular para ver los circuitos que pasan por este tramo")
             return
-        circuits = getter(self._segment.edge_id)
-        if circuits is None:
-            self._set_circuits_placeholder("Recalcular para ver los circuitos que pasan por este tramo")
-            return
-        if not circuits:
+        circuit_ids = list(edge_to_circuits.get(self._segment.edge_id, []) or [])
+        if not circuit_ids:
             self._set_circuits_placeholder("Ningun circuito pasa por este tramo")
             return
-        for label in circuits:
-            self.lst_circuits.addItem(str(label))
+        circuits = list((getattr(self._project, "circuits", {}) or {}).get("items") or [])
+        by_id = {str(c.get("id") or ""): c for c in circuits if c.get("id")}
+        for cid in circuit_ids:
+            circuit = by_id.get(str(cid) or "")
+            name = str((circuit or {}).get("name") or cid or "")
+            if name:
+                self.lst_circuits.addItem(name)
         self.lst_circuits.setEnabled(True)
 
     def _set_circuits_placeholder(self, text: str) -> None:
@@ -485,8 +492,7 @@ class ConduitSegmentDialog(QDialog):
     def _sync_preview_props(self) -> None:
         if self._loading_segment or not self._is_segment_alive(self._segment):
             return
-        props, fill_percent, max_fill = self._build_props_from_inputs()
-        self._persist_props(props, emit=True)
+        _, fill_percent, max_fill = self._build_props_from_inputs()
         self._update_fill_label(fill_percent, max_fill)
 
     def _render_section(self) -> None:
@@ -998,38 +1004,66 @@ class ConduitSegmentDialog(QDialog):
         props = self._segment_props(self._segment)
         return list(props.get("cables") or [])
 
+    def _calc_context(self) -> Optional[Dict[str, object]]:
+        calc = getattr(self._project, "_calc", None) if self._project is not None else None
+        return calc if isinstance(calc, dict) else None
+
+    def _edge_cables_from_calc(self) -> List[Dict[str, object]]:
+        if not self._is_segment_alive(self._segment):
+            return []
+        calc = self._calc_context()
+        if not calc:
+            return []
+        edge_to_circuits = calc.get("edge_to_circuits")
+        if not isinstance(edge_to_circuits, dict):
+            return []
+        circuit_ids = list(edge_to_circuits.get(self._segment.edge_id, []) or [])
+        if not circuit_ids:
+            return []
+        circuits = list((getattr(self._project, "circuits", {}) or {}).get("items") or [])
+        by_id = {str(c.get("id") or ""): c for c in circuits if c.get("id")}
+        cables: List[Dict[str, object]] = []
+        for cid in circuit_ids:
+            circuit = by_id.get(str(cid) or "")
+            if not circuit:
+                continue
+            cable_ref = str(circuit.get("cable_ref") or "")
+            if not cable_ref:
+                continue
+            qty = int(circuit.get("qty", 1) or 1)
+            diameter = 0.0
+            if self._material_service:
+                diameter = float(self._material_service.get_cable_outer_diameter(cable_ref) or 0.0)
+            if diameter <= 0:
+                continue
+            cables.append({"outer_diameter_mm": diameter, "qty": qty})
+        return cables
+
     def _compute_fill_percent(self) -> Tuple[float, float]:
         if self._is_segment_alive(self._segment):
             props = self._segment_props(self._segment)
             if not self._preview_dirty:
+                calc = self._calc_context()
+                fill_results = calc.get("fill_results") if calc else None
+                if isinstance(fill_results, dict):
+                    entry = fill_results.get(self._segment.edge_id)
+                    if entry:
+                        try:
+                            return float(entry.get("fill_percent") or 0.0), float(entry.get("fill_max_percent") or 0.0)
+                        except Exception:
+                            pass
                 try:
                     fill_percent = float(props.get("fill_percent") or 0.0)
                     fill_max = float(props.get("fill_max_percent") or 0.0)
                     return fill_percent, fill_max
                 except Exception:
                     pass
-            group_areas = list(props.get("group_area_sums") or [])
-            group_max_fills = list(props.get("group_max_fills") or [])
-            if group_areas and group_max_fills:
-                conduit_type = self.cmb_type.currentText().strip()
-                size = self.cmb_size.currentText().strip()
-                duct_id = self._current_duct_id()
-                if conduit_type == "Ducto":
-                    size = self._current_duct_label() or size
-                usable_area = self._usable_area_mm2(conduit_type, size, duct_id)
-                qty = max(1, int(self.spin_qty.value() or 1))
-                cap_area = usable_area * qty
-                fill_percent = 0.0
-                fill_max = min(group_max_fills) if group_max_fills else 0.0
-                if cap_area > 0:
-                    for area in group_areas:
-                        fill_percent = max(fill_percent, (float(area) / cap_area) * 100.0)
-                return float(fill_percent), float(fill_max)
 
         conduit_type = self.cmb_type.currentText().strip()
         size = self.cmb_size.currentText().strip()
         n, _ = self._sync_columns()
-        expanded = self._expand_cables(self._segment_cables())
+        cables = self._edge_cables_from_calc() or self._segment_cables()
+        expanded = self._expand_cables(cables)
         cable_groups = self._split_cables(n, expanded)
 
         if conduit_type == "Ducto":

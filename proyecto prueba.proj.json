@@ -16,296 +16,131 @@
   "canvas": {
     "nodes": [
       {
+        "id": "N1",
+        "type": "equipment",
+        "name": "LCC-HT1",
+        "x": 3931.938881434686,
+        "y": 3103.9241342510873,
+        "library_item_id": "user:bf18e67db3ac4ef882618df0187f10d0"
+      },
+      {
+        "id": "N2",
+        "type": "equipment",
+        "name": "LCC-H1",
+        "x": 4055.9148599747446,
+        "y": 3103.0192001011596,
+        "library_item_id": "user:37b94c65845b4de69b8ccbd7d7148dcd"
+      },
+      {
         "id": "N3",
         "type": "junction",
         "name": "GAP",
-        "x": 3932.2381458948516,
-        "y": 3234.21930773052,
+        "x": 3933.748749734541,
+        "y": 3238.5783357602886,
         "library_item_id": null
       },
       {
         "id": "N4",
         "type": "junction",
         "name": "GAP",
-        "x": 4057.724678598551,
-        "y": 3235.1996712672667,
+        "x": 4063.8330337866087,
+        "y": 3241.7003585775387,
         "library_item_id": null
-      },
-      {
-        "id": "N5",
-        "type": "equipment",
-        "name": "LCC-H2",
-        "x": 4185.171938375748,
-        "y": 3100.8898667328376,
-        "library_item_id": "user:4d775db1ab02418ab0256f405e041765"
-      },
-      {
-        "id": "N1",
-        "type": "equipment",
-        "name": "LCC-HT1",
-        "x": 3935.179236505094,
-        "y": 3100.8898667328385,
-        "library_item_id": "user:6784f4936c9045ff84c45316dfcb5462"
-      },
-      {
-        "id": "N2",
-        "type": "equipment",
-        "name": "LCC-H1",
-        "x": 4053.803224451561,
-        "y": 3100.889866732838,
-        "library_item_id": "user:46437ee3473f4451bb6e571b21b9f73e"
-      },
-      {
-        "id": "N6",
-        "type": "equipment",
-        "name": "LCC-HS",
-        "x": 4309.6781075427,
-        "y": 3097.9487761225955,
-        "library_item_id": "user:b072453d389746e6ae7c149568a99a22"
-      },
-      {
-        "id": "N7",
-        "type": "equipment",
-        "name": "LCC-HR",
-        "x": 4438.105730856642,
-        "y": 3097.9487761225964,
-        "library_item_id": "user:065d8e73c6d94422b8617e0bfda9924e"
-      },
-      {
-        "id": "N8",
-        "type": "junction",
-        "name": "GAP",
-        "x": 4183.893203327815,
-        "y": 3236.180034804015,
-        "library_item_id": null
-      },
-      {
-        "id": "N9",
-        "type": "junction",
-        "name": "GAP",
-        "x": 4308.697744005951,
-        "y": 3237.160398340762,
-        "library_item_id": null
-      },
-      {
-        "id": "N10",
-        "type": "junction",
-        "name": "GAP",
-        "x": 4438.105730856642,
-        "y": 3237.1603983407626,
-        "library_item_id": null
-      },
-      {
-        "id": "N11",
-        "type": "equipment",
-        "name": "MK-T1",
-        "x": 3579.7214762599697,
-        "y": 4531.375066833972,
-        "library_item_id": "user:cf46345cf5dd4362add99b512e337199"
-      },
-      {
-        "id": "N12",
-        "type": "equipment",
-        "name": "CTRL-T1",
-        "x": 3590.09372247876,
-        "y": 4164.456856844267,
-        "library_item_id": "user:56d5f3b673c94a0da1ddaf790b580fd0"
-      },
-      {
-        "id": "N13",
-        "type": "equipment",
-        "name": "TSA-1",
-        "x": 3392.0578371468923,
-        "y": 5263.273457286986,
-        "library_item_id": "user:a8fa17d1408e47de991cae448bb9ddf9"
       }
     ],
     "edges": [
       {
-        "id": "E3",
-        "from": "N3",
-        "to": "N4",
-        "kind": "duct",
-        "mode": "manual",
-        "runs": [
-          {
-            "catalog_id": "duct_c_a_g_1_2",
-            "qty": 1
-          }
-        ],
-        "from_node": "N3",
-        "to_node": "N4",
-        "props": {
-          "tag": "T2",
-          "conduit_type": "Ducto",
-          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
-          "duct_standard": "ANSI C80.1 (c.a.g)",
-          "duct_id": "duct_c_a_g_1_2",
-          "quantity": 1,
-          "columns": 1,
-          "cables": [],
-          "fill_percent": 0.0,
-          "fill_max_percent": 40.0,
-          "fill_over": false,
-          "duct_spacing_mm": 25.0,
-          "duct_spacing_custom": false
-        }
-      },
-      {
         "id": "E1",
         "from": "N1",
         "to": "N3",
+        "from_node": "N1",
+        "to_node": "N3",
         "kind": "duct",
         "mode": "manual",
         "runs": [
           {
-            "catalog_id": "duct_c_a_g_1_2",
+            "catalog_id": "duct_pvc_40_mm",
             "qty": 1
           }
         ],
-        "from_node": "N1",
-        "to_node": "N3",
         "props": {
           "tag": "T1",
           "conduit_type": "Ducto",
-          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
-          "duct_standard": "ANSI C80.1 (c.a.g)",
-          "duct_id": "duct_c_a_g_1_2",
+          "size": "PVC DN 40 mm (ID 34.8mm)",
+          "duct_standard": "Schedule 40 (PVC)",
+          "duct_id": "duct_pvc_40_mm",
           "quantity": 1,
           "columns": 1,
           "cables": [],
-          "fill_percent": 0.0,
-          "fill_max_percent": 40.0,
-          "fill_over": false,
           "duct_spacing_mm": 25.0,
-          "duct_spacing_custom": false
+          "duct_spacing_custom": false,
+          "fill_percent": 84.95,
+          "fill_max_percent": 40.0,
+          "fill_over": true,
+          "fill_state": "over"
         }
       },
       {
         "id": "E2",
-        "from": "N2",
-        "to": "N4",
+        "from": "N4",
+        "to": "N3",
+        "from_node": "N4",
+        "to_node": "N3",
         "kind": "duct",
         "mode": "manual",
         "runs": [
           {
-            "catalog_id": "duct_c_a_g_1_2",
+            "catalog_id": "duct_pvc_20_mm",
             "qty": 1
           }
         ],
+        "props": {
+          "tag": "T2",
+          "conduit_type": "Ducto",
+          "size": "PVC DN 20 mm (ID 15.6mm)",
+          "duct_standard": "Schedule 40 (PVC)",
+          "duct_id": "duct_pvc_20_mm",
+          "quantity": 1,
+          "columns": 1,
+          "cables": [],
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false,
+          "fill_percent": 0.0,
+          "fill_max_percent": 40.0,
+          "fill_over": false,
+          "fill_state": "ok"
+        }
+      },
+      {
+        "id": "E3",
+        "from": "N2",
+        "to": "N4",
         "from_node": "N2",
         "to_node": "N4",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [
+          {
+            "catalog_id": "duct_pvc_20_mm",
+            "qty": 1
+          }
+        ],
         "props": {
           "tag": "T3",
           "conduit_type": "Ducto",
-          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
-          "duct_standard": "ANSI C80.1 (c.a.g)",
-          "duct_id": "duct_c_a_g_1_2",
+          "size": "PVC DN 20 mm (ID 15.6mm)",
+          "duct_standard": "Schedule 40 (PVC)",
+          "duct_id": "duct_pvc_20_mm",
           "quantity": 1,
           "columns": 1,
           "cables": [],
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false,
           "fill_percent": 0.0,
           "fill_max_percent": 40.0,
           "fill_over": false,
-          "duct_spacing_mm": 25.0,
-          "duct_spacing_custom": false
+          "fill_state": "ok"
         }
-      },
-      {
-        "id": "E4",
-        "from": "N5",
-        "to": "N8",
-        "kind": "epc",
-        "mode": "manual",
-        "runs": [],
-        "from_node": "N5",
-        "to_node": "N8",
-        "props": {}
-      },
-      {
-        "id": "E5",
-        "from": "N6",
-        "to": "N9",
-        "kind": "epc",
-        "mode": "manual",
-        "runs": [],
-        "from_node": "N6",
-        "to_node": "N9",
-        "props": {}
-      },
-      {
-        "id": "E6",
-        "from": "N4",
-        "to": "N8",
-        "kind": "duct",
-        "mode": "manual",
-        "runs": [
-          {
-            "catalog_id": "duct_c_a_g_1_2",
-            "qty": 1
-          }
-        ],
-        "from_node": "N4",
-        "to_node": "N8",
-        "props": {
-          "tag": "T4",
-          "conduit_type": "Ducto",
-          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
-          "duct_standard": "ANSI C80.1 (c.a.g)",
-          "duct_id": "duct_c_a_g_1_2",
-          "quantity": 1,
-          "columns": 1,
-          "cables": [],
-          "fill_percent": 0.0,
-          "fill_max_percent": 40.0,
-          "fill_over": false,
-          "duct_spacing_mm": 25.0,
-          "duct_spacing_custom": false
-        }
-      },
-      {
-        "id": "E7",
-        "from": "N9",
-        "to": "N8",
-        "kind": "epc",
-        "mode": "manual",
-        "runs": [],
-        "from_node": "N9",
-        "to_node": "N8",
-        "props": {}
-      },
-      {
-        "id": "E8",
-        "from": "N9",
-        "to": "N10",
-        "kind": "epc",
-        "mode": "manual",
-        "runs": [],
-        "from_node": "N9",
-        "to_node": "N10",
-        "props": {}
-      },
-      {
-        "id": "E9",
-        "from": "N7",
-        "to": "N10",
-        "kind": "epc",
-        "mode": "manual",
-        "runs": [],
-        "from_node": "N7",
-        "to_node": "N10",
-        "props": {}
-      },
-      {
-        "id": "E10",
-        "from": "N11",
-        "to": "N12",
-        "kind": "duct",
-        "mode": "manual",
-        "runs": [],
-        "from_node": "N11",
-        "to_node": "N12",
-        "props": {}
       }
     ],
     "background": {
@@ -321,10 +156,10 @@
       "image_format": "png"
     },
     "view": {
-      "scale": 1.1730342438225618,
+      "scale": 0.9609154627008356,
       "center": [
-        4236.022968781832,
-        3159.3280584233185
+        4165.81911248343,
+        3333.279694550194
       ]
     }
   },
@@ -332,54 +167,24 @@
     "source": "none",
     "items": [
       {
-        "id": "C573c1fdc",
+        "id": "C95236551",
         "equipment_node_id": "N1",
-        "name": "Nuevo circuito",
-        "service": "power",
-        "cable_ref": "cond_12c_x_10_awg_apantallado",
-        "qty": 1,
-        "from_node": "N1",
-        "to_node": "N2"
-      },
-      {
-        "id": "Ceff7f57c",
-        "equipment_node_id": "N1",
-        "name": "Nuevo circuito",
-        "service": "power",
-        "cable_ref": "cond_12c_x_10_awg_apantallado",
-        "qty": 1,
-        "from_node": "N1",
-        "to_node": "N2"
-      },
-      {
-        "id": "C70f13260",
-        "equipment_node_id": "E1",
         "name": "C1",
         "service": "power",
-        "cable_ref": "cond_2c_x_10_awg_apantallado",
+        "cable_ref": "cond_12c_x_10_awg_apantallado",
         "qty": 1,
         "from_node": "N1",
         "to_node": "N2"
       },
       {
-        "id": "C81e15cb2",
-        "equipment_node_id": "E1",
+        "id": "C0df1bdce",
+        "equipment_node_id": "N1",
         "name": "C2",
         "service": "power",
-        "cable_ref": "cond_2c_x_10_awg_apantallado",
+        "cable_ref": "cond_12c_x_12_awg_apantallado",
         "qty": 1,
         "from_node": "N1",
         "to_node": "N2"
-      },
-      {
-        "id": "C938f6319",
-        "equipment_node_id": "E1",
-        "name": "C3",
-        "service": "power",
-        "cable_ref": "cond_2c_x_10_awg_apantallado",
-        "qty": 1,
-        "from_node": "N2",
-        "to_node": "N5"
       }
     ]
   },

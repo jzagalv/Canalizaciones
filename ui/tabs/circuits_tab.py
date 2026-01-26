@@ -34,6 +34,7 @@ class CircuitsTab(QWidget):
         super().__init__()
         self._project: Optional[Project] = None
         self._active_node_id: Optional[str] = None
+        self._filter_node_id: Optional[str] = None
         self._eff: Optional[EffectiveCatalog] = None
         self._material_service: Optional[MaterialService] = None
         self._node_options: List[NodeOption] = []
@@ -43,12 +44,12 @@ class CircuitsTab(QWidget):
 
         top = QHBoxLayout()
         root.addLayout(top)
-        top.addWidget(QLabel('Equipo activo:'))
-        self.lbl_active = QLabel('-')
-        self.lbl_active.setTextInteractionFlags(
-            self.lbl_active.textInteractionFlags() | Qt.TextSelectableByMouse
-        )
-        top.addWidget(self.lbl_active, 1)
+        top.addWidget(QLabel('Equipo:'))
+        self.cmb_filter = QComboBox()
+        self.cmb_filter.addItem("Todos", "")
+        self.cmb_filter.currentIndexChanged.connect(self._on_filter_changed)
+        top.addWidget(self.cmb_filter)
+        top.addStretch(1)
 
         self.btn_add = QPushButton('Agregar circuito')
         self.btn_add.clicked.connect(self._add_circuit)
@@ -96,7 +97,6 @@ class CircuitsTab(QWidget):
             if not node_id:
                 node_id = None
         self._active_node_id = node_id or None
-        self._refresh()
 
     def reload_node_lists(self) -> None:
         if not self._project:
@@ -109,14 +109,17 @@ class CircuitsTab(QWidget):
             return
         self._node_options = list_canvas_nodes_for_circuits(self._project)
         self._node_options_by_id = {opt.node_id: opt for opt in self._node_options}
-        active_id = self._active_node_id if isinstance(self._active_node_id, str) else None
-        self.lbl_active.setText(active_id or '-')
+        self._refresh_filter_combo()
+        filter_id = str(self._filter_node_id or "").strip()
         route_ctx = self._build_route_context()
         self.tbl.blockSignals(True)
         self.tbl.setRowCount(0)
         for c in (self._project.circuits.get('items') or []):
-            if active_id and c.get('equipment_node_id') != active_id:
-                continue
+            if filter_id:
+                from_id_raw = str(c.get('from_node') or "")
+                to_id_raw = str(c.get('to_node') or "")
+                if filter_id not in (from_id_raw, to_id_raw):
+                    continue
             r = self.tbl.rowCount()
             self.tbl.insertRow(r)
             self.tbl.setItem(r, self.COL_NAME, QTableWidgetItem(str(c.get('name', ''))))
@@ -154,6 +157,31 @@ class CircuitsTab(QWidget):
             item_id.setFlags(item_id.flags() & ~Qt.ItemIsEditable)
             self.tbl.setItem(r, self.COL_ID, item_id)
         self.tbl.blockSignals(False)
+
+    def _refresh_filter_combo(self) -> None:
+        if not hasattr(self, "cmb_filter"):
+            return
+        selected_id = str(self._filter_node_id or "")
+        self.cmb_filter.blockSignals(True)
+        self.cmb_filter.clear()
+        self.cmb_filter.addItem("Todos", "")
+        for opt in self._node_options:
+            self.cmb_filter.addItem(opt.display_text, opt.node_id)
+        if selected_id:
+            idx = self.cmb_filter.findData(selected_id)
+            if idx >= 0:
+                self.cmb_filter.setCurrentIndex(idx)
+            else:
+                self.cmb_filter.setCurrentIndex(0)
+                selected_id = ""
+        else:
+            self.cmb_filter.setCurrentIndex(0)
+        self.cmb_filter.blockSignals(False)
+        self._filter_node_id = selected_id or ""
+
+    def _on_filter_changed(self) -> None:
+        self._filter_node_id = str(self.cmb_filter.currentData() or "").strip()
+        self._refresh()
 
     def _add_circuit(self):
         if not self._project:

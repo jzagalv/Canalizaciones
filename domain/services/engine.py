@@ -2,11 +2,17 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from data.repositories.lib_merge import EffectiveCatalog
-from domain.calculations.formatting import fmt_percent, round2, util_color
+from domain.calculations.formatting import round2, util_color
+from domain.calculations.occupancy import (
+    DEFAULT_DUCT_MAX_FILL_PERCENT,
+    DEFAULT_TRAY_MAX_FILL_PERCENT,
+    calc_duct_fill,
+    calc_tray_fill,
+    get_material_max_fill_percent,
+)
 from domain.entities.models import Project
 
 
@@ -35,14 +41,21 @@ def resolve_node_id(ref: str, node_by_id: Dict[str, Dict[str, Any]]) -> Optional
     return exact_id
 
 
-def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[Dict[str, Dict[str, Any]], List[str]]:
-    """Compute per-edge solutions.
+def compute_project_solutions(
+    project: Project,
+    eff: EffectiveCatalog,
+) -> Tuple[
+    Dict[str, List[str]],
+    Dict[str, List[str]],
+    Dict[str, Dict[str, Any]],
+]:
+    """Compute manual-only routes and fill results.
 
     Returns:
-        solutions: edge_id -> dict with keys {proposal, fill, status, notes, badge}
-        warnings: list of warning strings
+        routes: circuito_id -> list[edge_id]
+        edge_to_circuits: edge_id -> list[circuit_id]
+        fill_results: edge_id -> dict with fill_percent, fill_max_percent, fill_over, fill_state, status
     """
-    warnings: List[str] = []
     canvas = project.canvas or {'nodes': [], 'edges': []}
     edges = list(canvas.get('edges') or [])
     nodes = list(canvas.get('nodes') or [])
@@ -74,26 +87,16 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
         # px -> m rough scale
         return math.hypot(dx, dy) * 0.05
 
-    degrees: Dict[str, int] = {}
     for e in edges:
         eid = str(e.get('id'))
         a, b = edge_endpoints(e)
         if not a or not b:
-            warnings.append(f"Tramo '{eid}' sin from/to")
             continue
         if a not in node_by_id or b not in node_by_id:
-            warnings.append(f"Tramo '{eid}' referencia nodo inexistente ({a}->{b})")
             continue
         w = edge_weight(e)
         adj.setdefault(a, []).append((b, eid, w))
         adj.setdefault(b, []).append((a, eid, w))
-        degrees[a] = degrees.get(a, 0) + 1
-        degrees[b] = degrees.get(b, 0) + 1
-
-    for nid, node in node_by_id.items():
-        if degrees.get(nid, 0) == 0:
-            label = str(node.get('name') or node.get('tag') or nid)
-            warnings.append(f"Nodo aislado '{label}' ({nid})")
 
     # Helper: Dijkstra shortest path returning list of edge_ids
     def shortest_path_edges(start: str, goal: str) -> Optional[List[str]]:
@@ -138,6 +141,8 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
     # Accumulate per-edge cable areas by service
     per_edge_services: Dict[str, Dict[str, float]] = {str(e.get('id')): {} for e in edges}
     conductors = eff.material.get('conductors_by_id', {})
+    routes: Dict[str, List[str]] = {}
+    edge_to_circuits: Dict[str, List[str]] = {str(e.get('id')): [] for e in edges if e.get('id')}
 
     circuits = list((project.circuits or {}).get('items') or [])
     for c in circuits:
@@ -148,21 +153,15 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
         from_node = resolve_node_id(from_ref, node_by_id)
         to_node = resolve_node_id(to_ref, node_by_id)
         if not from_node or not to_node:
-            warnings.append(
-                f"Circuito '{c.get('name','')}' referencia nodo inexistente: "
-                f"from='{from_ref}' to='{to_ref}'"
-            )
             continue
         path = shortest_path_edges(from_node, to_node)
         if not path:
-            if path is None:
-                from_label = str(node_by_id.get(from_node, {}).get("name") or from_node)
-                to_label = str(node_by_id.get(to_node, {}).get("name") or to_node)
-                warnings.append(
-                    f"Circuito '{c.get('name','')}' sin ruta entre "
-                    f"{from_node}({from_label})->{to_node}({to_label})"
-                )
             continue
+        cid = str(c.get("id") or "")
+        if cid:
+            routes[cid] = list(path)
+            for eid in path:
+                edge_to_circuits.setdefault(eid, []).append(cid)
 
         cref = str(c.get('cable_ref') or '')
         conductor = conductors.get(cref)
@@ -181,174 +180,105 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
             svc_map = per_edge_services.setdefault(eid, {})
             svc_map[service] = svc_map.get(service, 0.0) + area * qty
 
-    # Proposal per edge
-    rules = eff.material.get('rules', {})
-    defaults = rules.get('defaults', {})
+    fill_results = _build_edge_fill_results(edges, per_edge_services, eff)
 
-    ducts = list(eff.material.get('ducts_by_id', {}).values())
-    epc = list(eff.material.get('epc_by_id', {}).values())
+    return routes, edge_to_circuits, fill_results
 
-    # sort catalogs by usable area
-    def duct_area(duct_item: Dict[str, Any]) -> float:
-        # compute from ID if usable_area_mm2 not given
-        ua = duct_item.get('usable_area_mm2')
-        if ua:
-            return float(ua)
-        d = duct_item.get('inner_diameter_mm')
-        if not d:
-            return 0.0
-        r = float(d) / 2.0
-        return math.pi * r * r
 
-    def rect_area(item: Dict[str, Any]) -> float:
-        ua = item.get('usable_area_mm2')
-        if ua:
-            return float(ua)
-        w = float(item.get('inner_width_mm') or 0.0)
-        h = float(item.get('inner_height_mm') or 0.0)
-        return w * h
+def _build_edge_fill_results(
+    edges: List[Dict[str, Any]],
+    per_edge_services: Dict[str, Dict[str, float]],
+    eff: EffectiveCatalog,
+) -> Dict[str, Dict[str, Any]]:
+    fill_results: Dict[str, Dict[str, Any]] = {}
+    ducts = eff.material.get("ducts_by_id") or {}
+    epc = eff.material.get("epc_by_id") or {}
+    bpc = eff.material.get("bpc_by_id") or {}
 
-    ducts_sorted = sorted(ducts, key=duct_area)
-    epc_sorted = sorted(epc, key=rect_area)
+    def find_duct_material(duct_id: str, size_label: str) -> Dict[str, Any]:
+        if duct_id and duct_id in ducts:
+            return dict(ducts.get(duct_id) or {})
+        size_norm = str(size_label or "").strip().casefold()
+        if not size_norm:
+            return {}
+        for item in ducts.values():
+            name = str(item.get("name") or "")
+            nominal = str(item.get("nominal") or "")
+            did = str(item.get("id") or "")
+            if size_norm in (name.strip().casefold(), nominal.strip().casefold(), did.strip().casefold()):
+                return dict(item)
+        return {}
 
-    solutions: Dict[str, Dict[str, Any]] = {}
+    def find_rect_material(kind: str, size_label: str) -> Dict[str, Any]:
+        items = epc if str(kind or "").strip().lower() == "epc" else bpc
+        size_norm = str(size_label or "").strip().casefold()
+        if not size_norm:
+            return {}
+        for item in items.values():
+            name = str(item.get("name") or "")
+            nominal = str(item.get("nominal") or "")
+            rid = str(item.get("id") or "")
+            if size_norm in (name.strip().casefold(), nominal.strip().casefold(), rid.strip().casefold()):
+                return dict(item)
+        return {}
 
-    # simple separation: do not mix services if both present and rule says separate
-    def must_separate(svc_a: str, svc_b: str) -> bool:
-        for rule in (rules.get('separation') or []):
-            s = set(rule.get('if_services') or [])
-            if svc_a in s and svc_b in s:
-                return str(rule.get('requires')) == 'separate_containment'
-        return False
+    def scaled_material(material: Dict[str, Any], qty: int, is_duct: bool) -> Dict[str, Any]:
+        if qty <= 1:
+            return dict(material)
+        mat = dict(material)
+        if is_duct:
+            inner = float(mat.get("inner_diameter_mm") or 0.0)
+            usable = float(mat.get("usable_area_mm2") or 0.0)
+            if usable <= 0 and inner > 0:
+                usable = math.pi * (inner / 2.0) ** 2
+        else:
+            usable = float(mat.get("usable_area_mm2") or 0.0)
+            if usable <= 0:
+                w = float(mat.get("inner_width_mm") or 0.0)
+                h = float(mat.get("inner_height_mm") or 0.0)
+                usable = max(0.0, w * h)
+        if usable > 0:
+            mat["usable_area_mm2"] = usable * max(1, qty)
+        return mat
 
     for e in edges:
-        eid = str(e.get('id'))
-        kind = str(e.get('containment_kind') or 'duct')
+        eid = str(e.get("id") or "")
+        props = e.get("props") if isinstance(e.get("props"), dict) else {}
+        conduit_type = str(props.get("conduit_type") or e.get("containment_kind") or "duct").strip()
+        conduit_type_norm = conduit_type.lower()
+        size = str(props.get("size") or "")
+        duct_id = str(props.get("duct_id") or "")
+        qty = int(props.get("quantity") or 1)
         svc_areas = per_edge_services.get(eid, {})
-        if not svc_areas:
-            solutions[eid] = {
-                'proposal': '(sin circuitos)',
-                'fill': '0%',
-                'status': 'none',
-                'notes': '',
-                'badge': '',
-            }
-            continue
+        total_area = sum(float(v) for v in (svc_areas or {}).values())
 
-        # group services (separation)
-        groups: List[List[str]] = []
-        for svc in svc_areas.keys():
-            placed = False
-            for g in groups:
-                if any(must_separate(svc, s2) for s2 in g):
-                    continue
-                g.append(svc)
-                placed = True
-                break
-            if not placed:
-                groups.append([svc])
+        if conduit_type_norm in ("ducto", "duct"):
+            material = find_duct_material(duct_id, size)
+            material = scaled_material(material, qty, is_duct=True)
+            max_fill = get_material_max_fill_percent(material, DEFAULT_DUCT_MAX_FILL_PERCENT)
+            fill_percent = calc_duct_fill(material, [{"area_mm2": total_area}]) if total_area > 0 else 0.0
+        elif conduit_type_norm == "epc":
+            material = find_rect_material("epc", size)
+            material = scaled_material(material, qty, is_duct=False)
+            max_fill = get_material_max_fill_percent(material, DEFAULT_TRAY_MAX_FILL_PERCENT)
+            fill_percent = calc_tray_fill(material, [{"area_mm2": total_area}], has_separator=False) if total_area > 0 else 0.0
+        else:
+            material = find_rect_material("bpc", size)
+            material = scaled_material(material, qty, is_duct=False)
+            max_fill = get_material_max_fill_percent(material, DEFAULT_TRAY_MAX_FILL_PERCENT)
+            fill_percent = calc_tray_fill(material, [{"area_mm2": total_area}], has_separator=False) if total_area > 0 else 0.0
 
-        group_summaries: List[str] = []
-        overall_status = 'ok'
-        badge_parts: List[str] = []
-        notes: List[str] = []
-        fill_texts: List[str] = []
-        group_area_sums: List[float] = []
-        group_max_fills: List[float] = []
-        group_fill_percents: List[float] = []
-
-        for g in groups:
-            area_sum = sum(svc_areas[s] for s in g)
-            # max fill percent: use min over involved services, fallback 40
-            max_fill = min([
-                float((defaults.get(s) or {}).get('max_fill_percent', 40))
-                for s in g
-            ] or [40.0])
-            group_area_sums.append(area_sum)
-            group_max_fills.append(max_fill)
-
-            if kind == 'epc':
-                catalog = epc_sorted
-                cap_area_fn = rect_area
-                label_prefix = 'EPC'
-            else:
-                catalog = ducts_sorted
-                cap_area_fn = duct_area
-                label_prefix = 'D'
-
-            if not catalog:
-                overall_status = 'error'
-                notes.append('No hay catalogo para este tipo de canalizacion en bibliotecas.')
-                continue
-
-            chosen = None
-            n_parallel = 1
-            for item in catalog:
-                cap = cap_area_fn(item) * (max_fill / 100.0)
-                if cap <= 0:
-                    continue
-                if area_sum <= cap:
-                    chosen = item
-                    n_parallel = 1
-                    break
-                # try multiple parallel
-                n_need = int(math.ceil(area_sum / cap))
-                if n_need <= 6:  # hard limit for UI sanity
-                    chosen = item
-                    n_parallel = n_need
-                    break
-
-            if not chosen:
-                overall_status = 'error'
-                notes.append(f"No cabe ni con el maximo probado (servicios {g}).")
-                continue
-
-            usable_area = cap_area_fn(chosen) * n_parallel
-            cap = usable_area * (max_fill / 100.0)
-            fill = 0.0 if cap <= 0 else (area_sum / cap) * 100.0
-            fill_percent = 0.0 if usable_area <= 0 else (area_sum / usable_area) * 100.0
-            group_fill_percents.append(fill_percent)
-
-            if fill > 100.0 + 1e-6:
-                st = 'error'
-                overall_status = 'error'
-            elif fill > 85.0:
-                st = 'warn'
-                if overall_status != 'error':
-                    overall_status = 'warn'
-            else:
-                st = 'ok'
-
-            label = chosen.get('name') or chosen.get('id')
-            group_summaries.append(f"{n_parallel}x {label_prefix} {label} ({'/'.join(g)})")
-            fill_texts.append(fmt_percent(fill))
-            badge_parts.append(f"{n_parallel}x")
-
-        proposal = ' + '.join(group_summaries)
-        fill_str = ' / '.join(fill_texts) if fill_texts else ''
-        badge = proposal if len(proposal) <= 20 else (fill_str or overall_status)
-        fill_percent_raw = max(group_fill_percents) if group_fill_percents else 0.0
-        fill_max_raw = min(group_max_fills) if group_max_fills else 0.0
-        fill_over = bool(fill_max_raw > 0 and fill_percent_raw > fill_max_raw + 1e-6)
-        fill_percent = round2(fill_percent_raw)
-        fill_max = round2(fill_max_raw)
-        fill_state = util_color(fill_percent_raw, fill_max_raw)
-
-        solutions[eid] = {
-            'proposal': proposal,
-            'fill': fill_str,
-            'status': overall_status,
-            'notes': ' | '.join(notes),
-            'badge': badge,
-            'fill_percent': fill_percent,
-            'fill_max_percent': fill_max,
-            'fill_over': fill_over,
-            'fill_state': fill_state,
-            'group_area_sums': group_area_sums,
-            'group_max_fills': group_max_fills,
+        fill_over = bool(max_fill > 0 and fill_percent > max_fill + 1e-6)
+        status = "No cumple" if fill_over else "OK"
+        fill_results[eid] = {
+            "fill_percent": round2(fill_percent),
+            "fill_max_percent": round2(max_fill),
+            "fill_over": fill_over,
+            "fill_state": util_color(fill_percent, max_fill),
+            "status": status,
         }
 
-    return solutions, warnings
+    return fill_results
 
 
 def build_circuits_by_edge_index(project: Project) -> Dict[str, List[str]]:

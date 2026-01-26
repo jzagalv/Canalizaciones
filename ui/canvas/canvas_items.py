@@ -7,18 +7,108 @@ Project persistence and business rules belong to the scene/controller.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from PyQt5.QtCore import QPointF, Qt, pyqtSignal, QObject, QLineF, QRectF
-from PyQt5.QtGui import QBrush, QPen, QColor, QPainter
+from PyQt5.QtGui import QBrush, QPen, QColor, QPainter, QFont, QFontMetricsF
 from PyQt5.QtWidgets import (
     QGraphicsItem,
     QGraphicsLineItem,
-    QGraphicsSimpleTextItem,
-    QGraphicsTextItem,
 )
+
+from domain.calculations.formatting import fmt_percent, util_color
+
+
+class BadgeLabelItem(QGraphicsItem):
+    def __init__(
+        self,
+        text: str = "",
+        padding: float = 4.0,
+        radius: float = 4.0,
+        parent: Optional[QGraphicsItem] = None,
+    ):
+        super().__init__(parent)
+        self._text = str(text or "")
+        self._padding = float(padding)
+        self._radius = float(radius)
+        self._font = QFont()
+        self._text_color = QColor("#111827")
+        self._bg_color = QColor("#ffffff")
+        self._border_color = QColor("#e5e7eb")
+        self._lines: List[Tuple[str, QColor]] = []
+        self._bounds = QRectF()
+        self.set_text(text)
+
+    def set_text(self, text: str) -> None:
+        self._text = str(text or "")
+        self._lines = []
+        if self._text:
+            self._lines.append((self._text, QColor(self._text_color)))
+        self._recalc_bounds()
+        self.update()
+
+    def text(self) -> str:
+        return self._text
+
+    def set_font(self, font: QFont) -> None:
+        self._font = QFont(font)
+        self._recalc_bounds()
+        self.update()
+
+    def set_text_color(self, color: QColor) -> None:
+        self._text_color = QColor(color)
+        if len(self._lines) <= 1:
+            self._lines = [(self._text, QColor(self._text_color))] if self._text else []
+        self.update()
+
+    def set_background_color(self, color: QColor) -> None:
+        self._bg_color = QColor(color)
+        self.update()
+
+    def set_border_color(self, color: QColor) -> None:
+        self._border_color = QColor(color)
+        self.update()
+
+    def set_lines(self, lines: List[Tuple[str, QColor]]) -> None:
+        clean: List[Tuple[str, QColor]] = []
+        for text, color in lines or []:
+            clean.append((str(text or ""), QColor(color)))
+        self._lines = clean
+        self._text = "\n".join(line for line, _ in clean).strip()
+        self._recalc_bounds()
+        self.update()
+
+    def _recalc_bounds(self) -> None:
+        metrics = QFontMetricsF(self._font)
+        if not self._lines:
+            self._bounds = QRectF(0, 0, 0, 0)
+            return
+        widths = [metrics.boundingRect(line).width() for line, _ in self._lines]
+        line_height = metrics.height()
+        w = (max(widths) if widths else 0.0) + self._padding * 2
+        h = line_height * len(self._lines) + self._padding * 2
+        self._bounds = QRectF(0, 0, w, h)
+
+    def boundingRect(self) -> QRectF:
+        return QRectF(self._bounds)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:
+        if self._bounds.isNull():
+            return
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setBrush(QBrush(self._bg_color))
+        painter.setPen(QPen(self._border_color, 1))
+        painter.drawRoundedRect(self._bounds, self._radius, self._radius)
+        painter.setFont(self._font)
+        metrics = QFontMetricsF(self._font)
+        x = self._padding
+        y = self._padding + metrics.ascent()
+        line_height = metrics.height()
+        for line, color in self._lines:
+            painter.setPen(QPen(color))
+            painter.drawText(QPointF(x, y), line)
+            y += line_height
 
 
 @dataclass
@@ -49,7 +139,7 @@ class NodeItem(QGraphicsItem):
         self.setFlag(self.ItemSendsGeometryChanges, True)
         self.setZValue(10)
 
-        self.label = QGraphicsSimpleTextItem(data.name, self)
+        self.label = BadgeLabelItem(data.name, parent=self)
         self.label.setFlag(self.label.ItemIgnoresTransformations, True)
         self.label.setPos(radius + 4, -radius)
 
@@ -136,9 +226,9 @@ class EdgeItem(QGraphicsLineItem):
         self.setZValue(-1)
         self.setFlag(self.ItemIsSelectable, True)
 
-        self.badge = QGraphicsTextItem("", self)
+        self.badge = BadgeLabelItem("", parent=self)
         self.badge.setZValue(10)
-        self.badge.setDefaultTextColor(QColor("#111827"))
+        self.badge.setFlag(self.badge.ItemIgnoresTransformations, True)
 
         self.update_geometry()
         self.set_status("ok")
@@ -159,32 +249,43 @@ class EdgeItem(QGraphicsLineItem):
         mid = (p1 + p2) / 2
         self.badge.setPos(mid.x() + 6, mid.y() + 6)
 
-    def _runs_label(self) -> str:
-        if not self.runs:
-            return ""
-        parts = []
-        for r in self.runs:
-            cid = str(r.get("catalog_id", ""))
-            qty = int(r.get("qty", 1) or 1)
-            if not cid:
-                continue
-
-            if "duct" in (self.containment_kind or "") and "duct" in cid:
-                m = re.search(r"(\d+)", cid)
-                dim = f"Ø{m.group(1)}" if m else cid
-            else:
-                dim = cid.replace("_", " ")
-            parts.append(f"{qty}x{dim}" if qty != 1 else f"{dim}")
-        return " + ".join(parts)
+    def _label_text(self) -> List[Tuple[str, QColor]]:
+        props = self.props or {}
+        tag = str(props.get("tag") or "").strip()
+        has_tag = bool(tag)
+        tag_text = tag if has_tag else "SIN TAG"
+        kind_map = {"duct": "Ducto", "epc": "EPC", "bpc": "BPC"}
+        kind = str(props.get("conduit_type") or "").strip()
+        if not kind:
+            kind = kind_map.get(str(self.containment_kind or "").strip().lower(), "Ducto")
+        size = str(props.get("size") or "").strip()
+        qty = int(props.get("quantity") or 1)
+        if not size and self.runs:
+            size = str(self.runs[0].get("catalog_id") or "").strip()
+        size_text = size or "?"
+        fill_percent = props.get("fill_percent")
+        max_allowed = props.get("fill_max_percent")
+        if fill_percent is None:
+            fill_line = "Utilizacion: (Recalcular)"
+            fill_color = QColor("#9ca3af")
+        else:
+            fill_state = props.get("fill_state") or util_color(fill_percent, max_allowed)
+            fill_line = f"Utilizacion: {fmt_percent(fill_percent)}"
+            fill_color = {
+                "ok": QColor("#16a34a"),
+                "warn": QColor("#f59e0b"),
+                "over": QColor("#dc2626"),
+            }.get(str(fill_state), QColor("#111827"))
+        return [
+            (tag_text, QColor("#111827")),
+            (f"{kind} | {qty} x {size_text}", QColor("#111827")),
+            (fill_line, fill_color),
+        ]
 
     def set_status(self, status: str, badge_text: str = "") -> None:
         self.status = str(status or "ok")
-        if badge_text:
-            self.badge.setPlainText(str(badge_text))
-        else:
-            summary = self._runs_label()
-            k = (self.containment_kind or "").upper()
-            self.badge.setPlainText(f"{k} {summary}".strip())
+        lines = self._label_text()
+        self.badge.set_lines(lines)
         self._apply_style()
 
     def update_meta(

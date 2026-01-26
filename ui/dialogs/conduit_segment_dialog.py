@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
     QPushButton,
     QDoubleSpinBox,
     QSpinBox,
@@ -35,6 +36,7 @@ from domain.calculations.occupancy import (
     calc_tray_fill,
     get_material_max_fill_percent,
 )
+from domain.calculations.formatting import fmt_percent, round2, util_color
 from domain.materials.material_service import MaterialService
 
 
@@ -72,6 +74,8 @@ class ConduitSegmentDialog(QDialog):
         self._material_service: Optional[MaterialService] = material_service
         self._spacing_custom = False
         self._setting_spacing = False
+        self._loading_segment = False
+        self._preview_dirty = False
 
         self._size_options = {
             "Ducto": ['1"', '2"', '3"', '4"'],
@@ -97,6 +101,7 @@ class ConduitSegmentDialog(QDialog):
         gb = QGroupBox("Características de la canalización")
         form = QFormLayout(gb)
         self.edt_tag = QLineEdit()
+        self.edt_tag.textChanged.connect(self._on_form_changed)
         self.cmb_type = QComboBox()
         self.cmb_type.addItems(["Ducto", "EPC", "BPC"])
         self.cmb_type.currentTextChanged.connect(self._on_type_changed)
@@ -118,6 +123,7 @@ class ConduitSegmentDialog(QDialog):
         self.spin_cols.setRange(1, 12)
         self.spin_cols.setValue(3)
         self.spin_cols.valueChanged.connect(self._redraw_section)
+        self.spin_cols.valueChanged.connect(self._on_form_changed)
 
         self.spin_spacing = QDoubleSpinBox()
         self.spin_spacing.setDecimals(1)
@@ -140,6 +146,20 @@ class ConduitSegmentDialog(QDialog):
 
         left_layout.addWidget(gb)
         self._props_group = gb
+
+        circuits_group = QGroupBox("Circuitos que pasan por este tramo")
+        circuits_layout = QVBoxLayout(circuits_group)
+        circuits_header = QHBoxLayout()
+        circuits_header.addStretch(1)
+        self.btn_refresh_circuits = QPushButton("Actualizar")
+        self.btn_refresh_circuits.clicked.connect(self._refresh_circuits_list)
+        circuits_header.addWidget(self.btn_refresh_circuits)
+        circuits_layout.addLayout(circuits_header)
+        self.lst_circuits = QListWidget()
+        self.lst_circuits.setFixedHeight(140)
+        circuits_layout.addWidget(self.lst_circuits)
+        left_layout.addWidget(circuits_group)
+        self._circuits_group = circuits_group
 
         btn_row = QHBoxLayout()
         btn_row.addStretch(1)
@@ -197,6 +217,7 @@ class ConduitSegmentDialog(QDialog):
         self._update_type_controls_visibility(self.cmb_type.currentText().strip())
 
     def set_segment(self, segment_item) -> None:
+        self._loading_segment = True
         self._segment = segment_item if self._is_segment_alive(segment_item) else None
         if self._segment is None:
             self._set_form_enabled(False)
@@ -208,8 +229,11 @@ class ConduitSegmentDialog(QDialog):
             self.spin_cols.setValue(3)
             self._update_spacing_visibility()
             self._user_zoomed = False
+            self._preview_dirty = False
             self._set_zoom(1.0, user_action=False)
             self._render_section()
+            self._refresh_circuits_list()
+            self._loading_segment = False
             return
 
         props = self._segment_props(self._segment)
@@ -244,12 +268,42 @@ class ConduitSegmentDialog(QDialog):
             pass
 
         self._user_zoomed = False
+        self._preview_dirty = False
         self._set_zoom(1.0, user_action=False)
         self._render_section()
+        self._refresh_circuits_list()
+        self._loading_segment = False
 
     def _set_form_enabled(self, enabled: bool) -> None:
         self._props_group.setEnabled(enabled)
         self.btn_apply.setEnabled(enabled)
+
+    def _refresh_circuits_list(self) -> None:
+        if not hasattr(self, "lst_circuits"):
+            return
+        self.lst_circuits.clear()
+        if not self._is_segment_alive(self._segment):
+            return
+        scene = self._segment.scene()
+        getter = getattr(scene, "get_circuit_ids_for_edge", None) if scene is not None else None
+        if not callable(getter):
+            self._set_circuits_placeholder("Recalcular para ver los circuitos que pasan por este tramo")
+            return
+        circuits = getter(self._segment.edge_id)
+        if circuits is None:
+            self._set_circuits_placeholder("Recalcular para ver los circuitos que pasan por este tramo")
+            return
+        if not circuits:
+            self._set_circuits_placeholder("Ningun circuito pasa por este tramo")
+            return
+        for label in circuits:
+            self.lst_circuits.addItem(str(label))
+        self.lst_circuits.setEnabled(True)
+
+    def _set_circuits_placeholder(self, text: str) -> None:
+        self.lst_circuits.clear()
+        self.lst_circuits.addItem(text)
+        self.lst_circuits.setEnabled(False)
 
     def _segment_props(self, segment_item) -> Dict[str, str]:
         if segment_item is None:
@@ -293,51 +347,86 @@ class ConduitSegmentDialog(QDialog):
         return dict(props)
 
     def _on_type_changed(self, text: str) -> None:
+        if not self._loading_segment:
+            self._preview_dirty = True
         self._reload_sizes_for_type(text)
         self._update_type_controls_visibility(text)
         if text.strip() == "Ducto" and not self._spacing_custom:
             self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._update_spacing_visibility()
         self._render_section()
+        self._sync_preview_props()
 
     def _on_size_changed(self, text: str) -> None:
+        if not self._loading_segment:
+            self._preview_dirty = True
         if self.cmb_type.currentText().strip() == "Ducto" and not self._spacing_custom:
             self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._render_section()
+        self._sync_preview_props()
 
     def _on_duct_standard_changed(self, text: str) -> None:
+        if not self._loading_segment:
+            self._preview_dirty = True
         desired_id = self._current_duct_id()
         desired_label = self.cmb_duct.currentText().strip()
         self._reload_ducts_for_standard(text, desired_id=desired_id, desired_label=desired_label)
         if self.cmb_type.currentText().strip() == "Ducto" and not self._spacing_custom:
             self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._render_section()
+        self._sync_preview_props()
 
     def _on_duct_changed(self, index: int) -> None:
+        if not self._loading_segment:
+            self._preview_dirty = True
         if self.cmb_type.currentText().strip() == "Ducto" and not self._spacing_custom:
             self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._render_section()
+        self._sync_preview_props()
 
     def _on_qty_changed(self, value: int) -> None:
+        if not self._loading_segment:
+            self._preview_dirty = True
         if self._spacing_is_applicable() and not self._spacing_custom:
             self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_id())
         self._update_spacing_visibility()
         self._render_section()
+        self._sync_preview_props()
 
     def _on_spacing_changed(self, value: float) -> None:
         if self._setting_spacing:
             return
+        if not self._loading_segment:
+            self._preview_dirty = True
         self._spacing_custom = True
         self._render_section()
+        self._sync_preview_props()
 
     def _redraw_section(self, *args) -> None:
         self._render_section()
+
+    def _on_form_changed(self, *args) -> None:
+        if self._loading_segment:
+            return
+        self._preview_dirty = True
+        self._sync_preview_props()
 
     def _apply_to_segment(self) -> None:
         if not self._is_segment_alive(self._segment):
             self.set_segment(None)
             return
-        existing = self._segment_props(self._segment)
+        props, _, _ = self._build_props_from_inputs()
+        self._persist_props(props)
+        self._preview_dirty = False
+        try:
+            self._segment.update()
+            self._segment._apply_style()
+        except Exception:
+            pass
+        self._render_section()
+
+    def _build_props_from_inputs(self) -> Tuple[Dict[str, object], float, float]:
+        existing = self._segment_props(self._segment) if self._is_segment_alive(self._segment) else {}
         conduit_type = self.cmb_type.currentText().strip()
         size = self._ensure_valid_size_selection(conduit_type, fallback=str(existing.get("size") or ""))
         duct_standard = ""
@@ -346,9 +435,13 @@ class ConduitSegmentDialog(QDialog):
             duct_standard = self._current_duct_standard()
             duct_id = self._current_duct_id()
             size = self._current_duct_label() or size
-        fill_percent, max_fill = self._compute_fill_percent()
-        fill_over = bool(max_fill > 0 and fill_percent > max_fill + 1e-6)
-        props = {
+        fill_percent_raw, max_fill_raw = self._compute_fill_percent()
+        fill_over = bool(max_fill_raw > 0 and fill_percent_raw > max_fill_raw + 1e-6)
+        fill_percent = round2(fill_percent_raw)
+        max_fill = round2(max_fill_raw)
+        fill_state = util_color(fill_percent_raw, max_fill_raw)
+        props = dict(existing)
+        props.update({
             "tag": self.edt_tag.text().strip(),
             "conduit_type": conduit_type,
             "size": size,
@@ -356,20 +449,45 @@ class ConduitSegmentDialog(QDialog):
             "duct_id": duct_id,
             "quantity": int(self.spin_qty.value() or 1),
             "columns": int(self.spin_cols.value() or 1),
-            "cables": list(existing.get("cables") or []),
             "fill_percent": fill_percent,
             "fill_max_percent": max_fill,
             "fill_over": fill_over,
+            "fill_state": fill_state,
             "duct_spacing_mm": float(self.spin_spacing.value() or 0.0),
             "duct_spacing_custom": bool(self._spacing_custom),
-        }
+        })
+        props.setdefault("cables", list(existing.get("cables") or []))
+        return props, fill_percent_raw, max_fill_raw
+
+    def _persist_props(self, props: Dict[str, object], emit: bool = True) -> None:
+        if not self._is_segment_alive(self._segment):
+            return
         self._segment.props = dict(props)
-        try:
-            self._segment.update()
-            self._segment._apply_style()
-        except Exception:
-            pass
-        self._render_section()
+        scene = self._segment.scene()
+        conduit_type = str(props.get("conduit_type") or "Ducto")
+        kind_map = {"Ducto": "duct", "EPC": "epc", "BPC": "bpc"}
+        kind = kind_map.get(conduit_type, "duct")
+        if scene is not None and hasattr(scene, "set_edge_props"):
+            scene.set_edge_props(self._segment.edge_id, props, emit=emit)
+        if scene is not None and hasattr(scene, "set_edge_kind"):
+            scene.set_edge_kind(self._segment.edge_id, kind, emit=emit)
+        else:
+            self._segment.update_meta(containment_kind=kind)
+        runs = []
+        duct_id = str(props.get("duct_id") or "")
+        if conduit_type == "Ducto" and duct_id:
+            runs = [{"catalog_id": duct_id, "qty": int(props.get("quantity") or 1)}]
+        if scene is not None and hasattr(scene, "set_edge_runs"):
+            scene.set_edge_runs(self._segment.edge_id, runs, emit=emit)
+        else:
+            self._segment.update_meta(runs=runs)
+
+    def _sync_preview_props(self) -> None:
+        if self._loading_segment or not self._is_segment_alive(self._segment):
+            return
+        props, fill_percent, max_fill = self._build_props_from_inputs()
+        self._persist_props(props, emit=True)
+        self._update_fill_label(fill_percent, max_fill)
 
     def _render_section(self) -> None:
         self.section_scene.clear()
@@ -881,6 +999,33 @@ class ConduitSegmentDialog(QDialog):
         return list(props.get("cables") or [])
 
     def _compute_fill_percent(self) -> Tuple[float, float]:
+        if self._is_segment_alive(self._segment):
+            props = self._segment_props(self._segment)
+            if not self._preview_dirty:
+                try:
+                    fill_percent = float(props.get("fill_percent") or 0.0)
+                    fill_max = float(props.get("fill_max_percent") or 0.0)
+                    return fill_percent, fill_max
+                except Exception:
+                    pass
+            group_areas = list(props.get("group_area_sums") or [])
+            group_max_fills = list(props.get("group_max_fills") or [])
+            if group_areas and group_max_fills:
+                conduit_type = self.cmb_type.currentText().strip()
+                size = self.cmb_size.currentText().strip()
+                duct_id = self._current_duct_id()
+                if conduit_type == "Ducto":
+                    size = self._current_duct_label() or size
+                usable_area = self._usable_area_mm2(conduit_type, size, duct_id)
+                qty = max(1, int(self.spin_qty.value() or 1))
+                cap_area = usable_area * qty
+                fill_percent = 0.0
+                fill_max = min(group_max_fills) if group_max_fills else 0.0
+                if cap_area > 0:
+                    for area in group_areas:
+                        fill_percent = max(fill_percent, (float(area) / cap_area) * 100.0)
+                return float(fill_percent), float(fill_max)
+
         conduit_type = self.cmb_type.currentText().strip()
         size = self.cmb_size.currentText().strip()
         n, _ = self._sync_columns()
@@ -901,16 +1046,40 @@ class ConduitSegmentDialog(QDialog):
         fill_percent = max(fills) if fills else 0.0
         return float(fill_percent), float(max_fill)
 
+    def _usable_area_mm2(self, conduit_type: str, size: str, duct_id: Optional[str]) -> float:
+        if conduit_type == "Ducto":
+            material = self._duct_material(size, duct_id)
+            usable_area = float(material.get("usable_area_mm2") or 0.0)
+            if usable_area > 0:
+                return usable_area
+            inner_mm = float(material.get("inner_diameter_mm") or 0.0)
+            if inner_mm > 0:
+                r = inner_mm / 2.0
+                return math.pi * r * r
+            return 0.0
+        material = self._rect_material(conduit_type, size)
+        usable_area = float(material.get("usable_area_mm2") or 0.0)
+        if usable_area > 0:
+            return usable_area
+        w_mm = float(material.get("inner_width_mm") or 0.0)
+        h_mm = float(material.get("inner_height_mm") or 0.0)
+        return max(0.0, w_mm * h_mm)
+
     def _update_fill_label(self, fill_percent: float, max_fill: float) -> None:
-        if max_fill > 0:
-            text = f"Ocupacion: {fill_percent:.1f}% (max {max_fill:.0f}%)"
+        fill_percent_disp = round2(fill_percent)
+        max_fill_disp = round2(max_fill)
+        if max_fill_disp > 0:
+            text = f"Ocupacion: {fmt_percent(fill_percent_disp)} (max {fmt_percent(max_fill_disp)})"
         else:
-            text = f"Ocupacion: {fill_percent:.1f}%"
+            text = f"Ocupacion: {fmt_percent(fill_percent_disp)}"
         self.lbl_status.setText(text)
-        if max_fill > 0 and fill_percent > max_fill + 1e-6:
-            self.lbl_status.setStyleSheet("color: #dc2626;")
-        else:
-            self.lbl_status.setStyleSheet("")
+        fill_state = util_color(fill_percent, max_fill)
+        color = {
+            "ok": "#16a34a",
+            "warn": "#f59e0b",
+            "over": "#dc2626",
+        }.get(str(fill_state), "")
+        self.lbl_status.setStyleSheet(f"color: {color};" if color else "")
 
     def _duct_material(self, size: str, duct_id: Optional[str] = None) -> Dict[str, object]:
         if self._material_service:
@@ -1075,3 +1244,5 @@ class ConduitSegmentDialog(QDialog):
 
     def closeEvent(self, event) -> None:
         event.accept()
+
+

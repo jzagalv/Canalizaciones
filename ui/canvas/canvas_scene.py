@@ -12,8 +12,9 @@ Design goals:
 """
 
 import base64
+import math
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from PyQt5.QtCore import QObject, pyqtSignal, Qt, QRectF
 from PyQt5.QtGui import QPixmap, QImage, QPainter
@@ -35,6 +36,8 @@ class CanvasSceneSignals(QObject):
 
 class CanvasScene(QGraphicsScene):
     """Canvas scene holding nodes (equipment/chamber/junction) and edges."""
+
+    SNAP_THRESHOLD_PX = 24.0
 
     def __init__(self):
         super().__init__()
@@ -62,12 +65,21 @@ class CanvasScene(QGraphicsScene):
         self._pending_from_node_id: Optional[str] = None
 
         self._background_item: Optional[QGraphicsPixmapItem] = None
+        self._circuits_by_edge: Optional[Dict[str, List[str]]] = None
 
         self.selectionChanged.connect(self._emit_selection_snapshot)
 
     # -------------------- External data --------------------
     def set_equipment_items(self, items_by_id: Dict[str, Dict]) -> None:
         self._equipment_items_by_id = items_by_id or {}
+
+    def set_circuits_by_edge(self, circuits_by_edge: Optional[Dict[str, List[str]]]) -> None:
+        self._circuits_by_edge = circuits_by_edge
+
+    def get_circuit_ids_for_edge(self, edge_id: str) -> Optional[List[str]]:
+        if self._circuits_by_edge is None:
+            return None
+        return list(self._circuits_by_edge.get(str(edge_id), []))
 
     # -------------------- Project canvas --------------------
     def set_project_canvas(self, canvas: Dict) -> None:
@@ -76,6 +88,7 @@ class CanvasScene(QGraphicsScene):
         self._nodes_by_id.clear()
         self._edges_by_id.clear()
         self._background_item = None
+        self._circuits_by_edge = None
 
         base = {
             "nodes": [],
@@ -157,10 +170,15 @@ class CanvasScene(QGraphicsScene):
 
         # rebuild edges
         for e in self._project_canvas.get("edges", []) or []:
-            from_id = str(e.get("from", ""))
-            to_id = str(e.get("to", ""))
+            from_id = str(e.get("from_node") or e.get("from") or "")
+            to_id = str(e.get("to_node") or e.get("to") or "")
             if from_id not in self._nodes_by_id or to_id not in self._nodes_by_id:
                 continue
+            e["from"] = from_id
+            e["to"] = to_id
+            e["from_node"] = from_id
+            e["to_node"] = to_id
+            e["props"] = dict(e.get("props") or {})
             edge = EdgeItem(
                 edge_id=str(e.get("id", "")),
                 from_node=self._nodes_by_id[from_id],
@@ -169,6 +187,7 @@ class CanvasScene(QGraphicsScene):
                 mode=str(e.get("mode", "auto")),
                 runs=list(e.get("runs", []) or []),
             )
+            edge.props = dict(e.get("props") or {})
             edge.signals.double_clicked.connect(self._on_edge_double_clicked)
             self.addItem(edge)
             self._edges_by_id[edge.edge_id] = edge
@@ -303,13 +322,23 @@ class CanvasScene(QGraphicsScene):
         self._edges_by_id[edge_id] = edge
 
         self._project_canvas.setdefault("edges", []).append(
-            {"id": edge_id, "from": from_node_id, "to": to_node_id, "kind": str(kind), "mode": "manual", "runs": []}
+            {
+                "id": edge_id,
+                "from": from_node_id,
+                "to": to_node_id,
+                "from_node": from_node_id,
+                "to_node": to_node_id,
+                "kind": str(kind),
+                "mode": "manual",
+                "runs": [],
+                "props": {},
+            }
         )
         self._refresh_edges()
         self.signals.project_changed.emit(self._project_canvas)
         return edge_id
 
-    def set_edge_kind(self, edge_id: str, kind: str) -> None:
+    def set_edge_kind(self, edge_id: str, kind: str, emit: bool = True) -> None:
         edge = self._edges_by_id.get(edge_id)
         if not edge:
             return
@@ -318,9 +347,23 @@ class CanvasScene(QGraphicsScene):
             if str(e.get("id")) == str(edge_id):
                 e["kind"] = str(kind)
                 break
-        self.signals.project_changed.emit(self._project_canvas)
+        if emit:
+            self.signals.project_changed.emit(self._project_canvas)
 
-    def set_edge_mode(self, edge_id: str, mode: str) -> None:
+    def set_edge_props(self, edge_id: str, props: dict, emit: bool = True) -> None:
+        edge = self._edges_by_id.get(edge_id)
+        if not edge:
+            return
+        edge.props = dict(props or {})
+        edge.set_status(edge.status)
+        for e in self._project_canvas.get("edges", []) or []:
+            if str(e.get("id")) == str(edge_id):
+                e["props"] = dict(props or {})
+                break
+        if emit:
+            self.signals.project_changed.emit(self._project_canvas)
+
+    def set_edge_mode(self, edge_id: str, mode: str, emit: bool = True) -> None:
         edge = self._edges_by_id.get(edge_id)
         if not edge:
             return
@@ -329,9 +372,10 @@ class CanvasScene(QGraphicsScene):
             if str(e.get("id")) == str(edge_id):
                 e["mode"] = str(mode)
                 break
-        self.signals.project_changed.emit(self._project_canvas)
+        if emit:
+            self.signals.project_changed.emit(self._project_canvas)
 
-    def set_edge_runs(self, edge_id: str, runs: list) -> None:
+    def set_edge_runs(self, edge_id: str, runs: list, emit: bool = True) -> None:
         edge = self._edges_by_id.get(edge_id)
         if not edge:
             return
@@ -340,7 +384,8 @@ class CanvasScene(QGraphicsScene):
             if str(e.get("id")) == str(edge_id):
                 e["runs"] = list(runs or [])
                 break
-        self.signals.project_changed.emit(self._project_canvas)
+        if emit:
+            self.signals.project_changed.emit(self._project_canvas)
 
     def set_edge_status(self, edge_id: str, status: str, badge_text: str = "") -> None:
         edge = self._edges_by_id.get(edge_id)
@@ -422,6 +467,9 @@ class CanvasScene(QGraphicsScene):
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
+        if self._auto_snap_selected_edges():
+            self._refresh_edges()
+            self.signals.project_changed.emit(self._project_canvas)
         if self._background_item is None:
             return
         if self._project_canvas.get("background", {}).get("locked", True):
@@ -482,6 +530,58 @@ class CanvasScene(QGraphicsScene):
     def _refresh_edges(self) -> None:
         for edge in self._edges_by_id.values():
             edge.update_geometry()
+            self._sync_edge_model_endpoints(edge)
+
+    def _sync_edge_model_endpoints(self, edge: EdgeItem) -> None:
+        for e in self._project_canvas.get("edges", []) or []:
+            if str(e.get("id")) == str(edge.edge_id):
+                from_id = str(edge.from_node.node_id)
+                to_id = str(edge.to_node.node_id)
+                e["from"] = from_id
+                e["to"] = to_id
+                e["from_node"] = from_id
+                e["to_node"] = to_id
+                break
+
+    def _auto_snap_selected_edges(self) -> bool:
+        changed = False
+        selected = [it for it in self.selectedItems() if isinstance(it, EdgeItem)]
+        if not selected:
+            return False
+        nodes = list(self._nodes_by_id.values())
+        for edge in selected:
+            if self._snap_edge_endpoint(edge, nodes, is_start=True):
+                changed = True
+            if self._snap_edge_endpoint(edge, nodes, is_start=False):
+                changed = True
+        return changed
+
+    def _snap_edge_endpoint(self, edge: EdgeItem, nodes: list, is_start: bool) -> bool:
+        line = edge.line()
+        point = line.p1() if is_start else line.p2()
+        closest = self._nearest_node(point.x(), point.y(), nodes, self.SNAP_THRESHOLD_PX)
+        if closest is None:
+            return False
+        if is_start and closest.node_id != edge.from_node.node_id:
+            edge.from_node = closest
+        elif (not is_start) and closest.node_id != edge.to_node.node_id:
+            edge.to_node = closest
+        else:
+            return False
+        self._sync_edge_model_endpoints(edge)
+        edge.update_geometry()
+        return True
+
+    def _nearest_node(self, x: float, y: float, nodes: list, max_dist: float) -> Optional[NodeItem]:
+        best = None
+        best_dist = float(max_dist)
+        for node in nodes:
+            pos = node.scenePos()
+            dist = math.hypot(float(pos.x()) - x, float(pos.y()) - y)
+            if dist <= best_dist:
+                best = node
+                best_dist = dist
+        return best
 
     def _emit_selection_snapshot(self) -> None:
         # Update edge style on selection changes

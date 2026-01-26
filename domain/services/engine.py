@@ -6,12 +6,33 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from data.repositories.lib_merge import EffectiveCatalog
+from domain.calculations.formatting import fmt_percent, round2, util_color
 from domain.entities.models import Project
 
 
 def _cable_area_mm2(outer_diameter_mm: float) -> float:
     r = float(outer_diameter_mm) / 2.0
     return math.pi * r * r
+
+
+def resolve_node_id(ref: str, node_by_id: Dict[str, Dict[str, Any]]) -> Optional[str]:
+    ref_raw = str(ref or "")
+    if not ref_raw:
+        return None
+    if ref_raw in node_by_id:
+        return ref_raw
+    ref_norm = ref_raw.strip().casefold()
+    exact_id = None
+    for nid, node in node_by_id.items():
+        name = str(node.get("name") or "")
+        tag = str(node.get("tag") or "")
+        label = str(node.get("label") or "")
+        if ref_raw in (name, tag, label):
+            return nid
+        if exact_id is None:
+            if ref_norm and ref_norm in (name.strip().casefold(), tag.strip().casefold(), label.strip().casefold()):
+                exact_id = nid
+    return exact_id
 
 
 def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[Dict[str, Dict[str, Any]], List[str]]:
@@ -29,6 +50,12 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
     # Build graph adjacency: node_id -> list[(to_node, edge_id, weight_m)]
     adj: Dict[str, List[Tuple[str, str, float]]] = {}
     edge_by_id: Dict[str, Dict[str, Any]] = {str(e.get('id')): e for e in edges}
+    node_by_id: Dict[str, Dict[str, Any]] = {str(n.get('id')): n for n in nodes}
+
+    def edge_endpoints(edge: Dict[str, Any]) -> Tuple[str, str]:
+        from_id = str(edge.get('from_node') or edge.get('from') or '')
+        to_id = str(edge.get('to_node') or edge.get('to') or '')
+        return from_id, to_id
 
     def edge_weight(e: Dict[str, Any]) -> float:
         # if length_m provided use it, else approximate using stored node coordinates
@@ -37,8 +64,9 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
                 return float(e.get('length_m'))
             except Exception:
                 pass
-        a = next((n for n in nodes if n.get('id') == e.get('from_node')), None)
-        b = next((n for n in nodes if n.get('id') == e.get('to_node')), None)
+        from_id, to_id = edge_endpoints(e)
+        a = node_by_id.get(from_id)
+        b = node_by_id.get(to_id)
         if not (a and b):
             return 1.0
         dx = float(a.get('x', 0)) - float(b.get('x', 0))
@@ -46,13 +74,26 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
         # px -> m rough scale
         return math.hypot(dx, dy) * 0.05
 
+    degrees: Dict[str, int] = {}
     for e in edges:
         eid = str(e.get('id'))
-        a = str(e.get('from_node'))
-        b = str(e.get('to_node'))
+        a, b = edge_endpoints(e)
+        if not a or not b:
+            warnings.append(f"Tramo '{eid}' sin from/to")
+            continue
+        if a not in node_by_id or b not in node_by_id:
+            warnings.append(f"Tramo '{eid}' referencia nodo inexistente ({a}->{b})")
+            continue
         w = edge_weight(e)
         adj.setdefault(a, []).append((b, eid, w))
         adj.setdefault(b, []).append((a, eid, w))
+        degrees[a] = degrees.get(a, 0) + 1
+        degrees[b] = degrees.get(b, 0) + 1
+
+    for nid, node in node_by_id.items():
+        if degrees.get(nid, 0) == 0:
+            label = str(node.get('name') or node.get('tag') or nid)
+            warnings.append(f"Nodo aislado '{label}' ({nid})")
 
     # Helper: Dijkstra shortest path returning list of edge_ids
     def shortest_path_edges(start: str, goal: str) -> Optional[List[str]]:
@@ -100,14 +141,27 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
 
     circuits = list((project.circuits or {}).get('items') or [])
     for c in circuits:
-        from_node = str(c.get('from_node') or '')
-        to_node = str(c.get('to_node') or '')
+        from_ref = str(c.get("from_node") or "")
+        to_ref = str(c.get("to_node") or "")
+        if not from_ref or not to_ref:
+            continue
+        from_node = resolve_node_id(from_ref, node_by_id)
+        to_node = resolve_node_id(to_ref, node_by_id)
         if not from_node or not to_node:
+            warnings.append(
+                f"Circuito '{c.get('name','')}' referencia nodo inexistente: "
+                f"from='{from_ref}' to='{to_ref}'"
+            )
             continue
         path = shortest_path_edges(from_node, to_node)
         if not path:
             if path is None:
-                warnings.append(f"Circuito '{c.get('name','')}' sin ruta entre {from_node}->{to_node}")
+                from_label = str(node_by_id.get(from_node, {}).get("name") or from_node)
+                to_label = str(node_by_id.get(to_node, {}).get("name") or to_node)
+                warnings.append(
+                    f"Circuito '{c.get('name','')}' sin ruta entre "
+                    f"{from_node}({from_label})->{to_node}({to_label})"
+                )
             continue
 
         cref = str(c.get('cable_ref') or '')
@@ -199,6 +253,9 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
         badge_parts: List[str] = []
         notes: List[str] = []
         fill_texts: List[str] = []
+        group_area_sums: List[float] = []
+        group_max_fills: List[float] = []
+        group_fill_percents: List[float] = []
 
         for g in groups:
             area_sum = sum(svc_areas[s] for s in g)
@@ -207,6 +264,8 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
                 float((defaults.get(s) or {}).get('max_fill_percent', 40))
                 for s in g
             ] or [40.0])
+            group_area_sums.append(area_sum)
+            group_max_fills.append(max_fill)
 
             if kind == 'epc':
                 catalog = epc_sorted
@@ -244,8 +303,11 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
                 notes.append(f"No cabe ni con el maximo probado (servicios {g}).")
                 continue
 
-            cap = cap_area_fn(chosen) * (max_fill / 100.0) * n_parallel
+            usable_area = cap_area_fn(chosen) * n_parallel
+            cap = usable_area * (max_fill / 100.0)
             fill = 0.0 if cap <= 0 else (area_sum / cap) * 100.0
+            fill_percent = 0.0 if usable_area <= 0 else (area_sum / usable_area) * 100.0
+            group_fill_percents.append(fill_percent)
 
             if fill > 100.0 + 1e-6:
                 st = 'error'
@@ -259,12 +321,18 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
 
             label = chosen.get('name') or chosen.get('id')
             group_summaries.append(f"{n_parallel}x {label_prefix} {label} ({'/'.join(g)})")
-            fill_texts.append(f"{fill:.0f}%")
+            fill_texts.append(fmt_percent(fill))
             badge_parts.append(f"{n_parallel}x")
 
         proposal = ' + '.join(group_summaries)
         fill_str = ' / '.join(fill_texts) if fill_texts else ''
         badge = proposal if len(proposal) <= 20 else (fill_str or overall_status)
+        fill_percent_raw = max(group_fill_percents) if group_fill_percents else 0.0
+        fill_max_raw = min(group_max_fills) if group_max_fills else 0.0
+        fill_over = bool(fill_max_raw > 0 and fill_percent_raw > fill_max_raw + 1e-6)
+        fill_percent = round2(fill_percent_raw)
+        fill_max = round2(fill_max_raw)
+        fill_state = util_color(fill_percent_raw, fill_max_raw)
 
         solutions[eid] = {
             'proposal': proposal,
@@ -272,6 +340,110 @@ def compute_project_solutions(project: Project, eff: EffectiveCatalog) -> Tuple[
             'status': overall_status,
             'notes': ' | '.join(notes),
             'badge': badge,
+            'fill_percent': fill_percent,
+            'fill_max_percent': fill_max,
+            'fill_over': fill_over,
+            'fill_state': fill_state,
+            'group_area_sums': group_area_sums,
+            'group_max_fills': group_max_fills,
         }
 
     return solutions, warnings
+
+
+def build_circuits_by_edge_index(project: Project) -> Dict[str, List[str]]:
+    canvas = project.canvas or {"nodes": [], "edges": []}
+    edges = list(canvas.get("edges") or [])
+    nodes = list(canvas.get("nodes") or [])
+
+    adj: Dict[str, List[Tuple[str, str, float]]] = {}
+    node_by_id: Dict[str, Dict[str, Any]] = {str(n.get("id")): n for n in nodes if n.get("id")}
+
+    def edge_endpoints(edge: Dict[str, Any]) -> Tuple[str, str]:
+        from_id = str(edge.get("from_node") or edge.get("from") or "")
+        to_id = str(edge.get("to_node") or edge.get("to") or "")
+        return from_id, to_id
+
+    def edge_weight(e: Dict[str, Any]) -> float:
+        if e.get("length_m") is not None:
+            try:
+                return float(e.get("length_m"))
+            except Exception:
+                pass
+        from_id, to_id = edge_endpoints(e)
+        a = node_by_id.get(from_id)
+        b = node_by_id.get(to_id)
+        if not (a and b):
+            return 1.0
+        dx = float(a.get("x", 0)) - float(b.get("x", 0))
+        dy = float(a.get("y", 0)) - float(b.get("y", 0))
+        return math.hypot(dx, dy) * 0.05
+
+    for e in edges:
+        eid = str(e.get("id") or "")
+        a, b = edge_endpoints(e)
+        if not eid or not a or not b:
+            continue
+        w = edge_weight(e)
+        adj.setdefault(a, []).append((b, eid, w))
+        adj.setdefault(b, []).append((a, eid, w))
+
+    def shortest_path_edges(start: str, goal: str) -> Optional[List[str]]:
+        if start == goal:
+            return []
+        if start not in adj or goal not in adj:
+            return None
+        import heapq
+
+        pq: List[Tuple[float, str]] = [(0.0, start)]
+        dist: Dict[str, float] = {start: 0.0}
+        prev: Dict[str, Tuple[str, str]] = {}
+        visited = set()
+
+        while pq:
+            d, u = heapq.heappop(pq)
+            if u in visited:
+                continue
+            visited.add(u)
+            if u == goal:
+                break
+            for v, eid, w in adj.get(u, []):
+                nd = d + w
+                if nd < dist.get(v, 1e18):
+                    dist[v] = nd
+                    prev[v] = (u, eid)
+                    heapq.heappush(pq, (nd, v))
+
+        if goal not in prev and goal != start:
+            return None
+
+        path_edges: List[str] = []
+        cur = goal
+        while cur != start:
+            u, eid = prev[cur]
+            path_edges.append(eid)
+            cur = u
+        path_edges.reverse()
+        return path_edges
+
+    circuits_by_edge: Dict[str, List[str]] = {str(e.get("id") or ""): [] for e in edges if e.get("id")}
+    circuits = list((project.circuits or {}).get("items") or [])
+    for c in circuits:
+        from_ref = str(c.get("from_node") or "")
+        to_ref = str(c.get("to_node") or "")
+        if not from_ref or not to_ref:
+            continue
+        from_node = resolve_node_id(from_ref, node_by_id)
+        to_node = resolve_node_id(to_ref, node_by_id)
+        if not from_node or not to_node:
+            continue
+        path = shortest_path_edges(from_node, to_node)
+        if not path:
+            continue
+        label = str(c.get("name") or c.get("id") or "").strip()
+        if not label:
+            continue
+        for eid in path:
+            circuits_by_edge.setdefault(eid, []).append(label)
+
+    return circuits_by_edge

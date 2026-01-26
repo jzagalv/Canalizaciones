@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from functools import partial
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
@@ -26,8 +26,9 @@ class CircuitsTab(QWidget):
     COL_QTY = 3
     COL_FROM = 4
     COL_TO = 5
-    COL_STATUS = 6
-    COL_ID = 7
+    COL_ROUTE = 6
+    COL_STATUS = 7
+    COL_ID = 8
 
     def __init__(self):
         super().__init__()
@@ -61,9 +62,9 @@ class CircuitsTab(QWidget):
         self.btn_template.clicked.connect(self._generate_from_template)
         top.addWidget(self.btn_template)
 
-        self.tbl = QTableWidget(0, 8)
+        self.tbl = QTableWidget(0, 9)
         self.tbl.setHorizontalHeaderLabels([
-            'Name', 'Service', 'Cable', 'Qty', 'Origen', 'Destino', 'Estado', 'CircuitId'
+            'Name', 'Service', 'Cable', 'Qty', 'Origen', 'Destino', 'Recorrido', 'Estado', 'CircuitId'
         ])
         self.tbl.itemChanged.connect(self._on_item_changed)
         root.addWidget(self.tbl, 1)
@@ -78,6 +79,7 @@ class CircuitsTab(QWidget):
 
     def set_effective_catalog(self, eff: Optional[EffectiveCatalog]) -> None:
         self._eff = eff
+        self._refresh()
 
     def set_material_service(self, material_service: Optional[MaterialService]) -> None:
         self._material_service = material_service
@@ -109,6 +111,7 @@ class CircuitsTab(QWidget):
         self._node_options_by_id = {opt.node_id: opt for opt in self._node_options}
         active_id = self._active_node_id if isinstance(self._active_node_id, str) else None
         self.lbl_active.setText(active_id or '-')
+        route_ctx = self._build_route_context()
         self.tbl.blockSignals(True)
         self.tbl.setRowCount(0)
         for c in (self._project.circuits.get('items') or []):
@@ -137,6 +140,10 @@ class CircuitsTab(QWidget):
 
             self.tbl.setCellWidget(r, self.COL_FROM, cmb_from)
             self.tbl.setCellWidget(r, self.COL_TO, cmb_to)
+
+            route_item = QTableWidgetItem(self._route_text_for_circuit(c, route_ctx))
+            route_item.setFlags(route_item.flags() & ~Qt.ItemIsEditable)
+            self.tbl.setItem(r, self.COL_ROUTE, route_item)
 
             status = self._row_status(missing_from, missing_to, missing_cable, from_id, to_id)
             status_item = QTableWidgetItem(status)
@@ -184,7 +191,7 @@ class CircuitsTab(QWidget):
     def _on_item_changed(self, item: QTableWidgetItem):
         if not self._project:
             return
-        if item.column() in (self.COL_STATUS, self.COL_ID, self.COL_CABLE):
+        if item.column() in (self.COL_STATUS, self.COL_ID, self.COL_CABLE, self.COL_ROUTE):
             return
         row = item.row()
         cid = self.tbl.item(row, self.COL_ID).text().strip() if self.tbl.item(row, self.COL_ID) else ''
@@ -264,17 +271,22 @@ class CircuitsTab(QWidget):
 
     def _build_cable_combo(self, service: str, selected_id: str):
         combo = QComboBox()
+        combo.blockSignals(True)
         combo.setProperty("valid_cable_ids", [])
         combo.setProperty("no_matches", False)
         combo.setProperty("missing_cable", False)
         service_norm = str(service or "").strip().lower() or "power"
         cables = self._list_cables_for_service(service_norm)
         valid_ids = [str(c.get("id") or "") for c in cables if c.get("id")]
-        combo.addItem("(sin selecciÃ³n)", "")
-        for cable in cables:
-            cid = str(cable.get("id") or "")
-            name = str(cable.get("name") or cid)
-            combo.addItem(name, cid)
+        if cables:
+            combo.addItem("(sin selecciÃ³n)", "")
+            for cable in cables:
+                cid = str(cable.get("id") or "")
+                name = str(cable.get("name") or cable.get("Nombre") or cid)
+                combo.addItem(name, cid)
+        else:
+            combo.addItem("(sin cables compatibles)", "")
+            combo.setProperty("no_matches", True)
         combo.setProperty("valid_cable_ids", valid_ids)
 
         selected_id = str(selected_id or "").strip()
@@ -290,11 +302,11 @@ class CircuitsTab(QWidget):
                 missing = True
 
         if not cables:
-            combo.setProperty("no_matches", True)
             combo.setToolTip(f"Sin cables para servicio: {service_norm}")
             missing = True
 
         combo.setProperty("missing_cable", missing)
+        combo.blockSignals(False)
         return combo, missing
 
     def _label_for_missing_cable(self, cable_id: str, service_norm: str) -> str:
@@ -308,17 +320,24 @@ class CircuitsTab(QWidget):
         return f"(no encontrado) {name}"
 
     def _find_cable_by_id(self, cable_id: str) -> Optional[Dict[str, object]]:
-        if not self._material_service:
-            return None
-        for cable in self._material_service.list_conductors(None):
-            if str(cable.get("id") or "").strip().lower() == str(cable_id or "").strip().lower():
-                return cable
+        cable_id_norm = str(cable_id or "").strip().lower()
+        if self._eff:
+            for cable in (self._eff.material.get("conductors_by_id") or {}).values():
+                if str(cable.get("id") or "").strip().lower() == cable_id_norm:
+                    return cable
+        if self._material_service:
+            for cable in self._material_service.list_conductors(None):
+                if str(cable.get("id") or "").strip().lower() == cable_id_norm:
+                    return cable
         return None
 
     def _list_cables_for_service(self, service: str) -> List[Dict[str, object]]:
-        if not self._material_service:
+        if not self._eff:
             return []
-        cables = self._material_service.list_conductors(service)
+        service_norm = str(service or "").strip().lower()
+        cables = list((self._eff.material.get("conductors_by_id") or {}).values())
+        if service_norm:
+            cables = [c for c in cables if str(c.get("service") or "").strip().lower() == service_norm]
         cables.sort(key=lambda c: str(c.get("name") or c.get("id") or ""))
         return cables
 
@@ -441,3 +460,109 @@ class CircuitsTab(QWidget):
         if not isinstance(combo, QComboBox):
             return False
         return bool(combo.property("missing_cable"))
+
+    def _build_route_context(self) -> Dict[str, Any]:
+        canvas = self._project.canvas if self._project else {}
+        nodes = list((canvas or {}).get("nodes") or [])
+        edges = list((canvas or {}).get("edges") or [])
+        nodes_by_id = {str(n.get("id") or ""): n for n in nodes if n.get("id")}
+        edge_by_id = {str(e.get("id") or ""): e for e in edges if e.get("id")}
+        adj: Dict[str, List[Tuple[str, str, float]]] = {}
+
+        for e in edges:
+            from_id, to_id = self._edge_endpoints(e)
+            if not from_id or not to_id:
+                continue
+            eid = str(e.get("id") or "")
+            if not eid:
+                continue
+            w = self._edge_weight(e, nodes_by_id)
+            adj.setdefault(from_id, []).append((to_id, eid, w))
+            adj.setdefault(to_id, []).append((from_id, eid, w))
+
+        return {"adj": adj, "edge_by_id": edge_by_id, "nodes_by_id": nodes_by_id}
+
+    def _edge_endpoints(self, edge: Dict[str, Any]) -> Tuple[str, str]:
+        from_id = str(edge.get("from_node") or edge.get("from") or "")
+        to_id = str(edge.get("to_node") or edge.get("to") or "")
+        return from_id, to_id
+
+    def _edge_weight(self, edge: Dict[str, Any], nodes_by_id: Dict[str, Dict[str, Any]]) -> float:
+        if edge.get("length_m") is not None:
+            try:
+                return float(edge.get("length_m"))
+            except Exception:
+                pass
+        a = nodes_by_id.get(str(edge.get("from_node") or edge.get("from") or ""))
+        b = nodes_by_id.get(str(edge.get("to_node") or edge.get("to") or ""))
+        if not (a and b):
+            return 1.0
+        try:
+            dx = float(a.get("x", 0)) - float(b.get("x", 0))
+            dy = float(a.get("y", 0)) - float(b.get("y", 0))
+        except Exception:
+            return 1.0
+        return (dx * dx + dy * dy) ** 0.5 * 0.05
+
+    def _shortest_path_edges(self, start: str, goal: str, adj: Dict[str, List[Tuple[str, str, float]]]) -> Optional[List[str]]:
+        if start == goal:
+            return []
+        if start not in adj or goal not in adj:
+            return None
+        import heapq
+
+        pq: List[Tuple[float, str]] = [(0.0, start)]
+        dist: Dict[str, float] = {start: 0.0}
+        prev: Dict[str, Tuple[str, str]] = {}
+        visited = set()
+
+        while pq:
+            d, u = heapq.heappop(pq)
+            if u in visited:
+                continue
+            visited.add(u)
+            if u == goal:
+                break
+            for v, eid, w in adj.get(u, []):
+                nd = d + w
+                if nd < dist.get(v, 1e18):
+                    dist[v] = nd
+                    prev[v] = (u, eid)
+                    heapq.heappush(pq, (nd, v))
+
+        if goal not in prev and goal != start:
+            return None
+
+        path_edges: List[str] = []
+        cur = goal
+        while cur != start:
+            u, eid = prev[cur]
+            path_edges.append(eid)
+            cur = u
+        path_edges.reverse()
+        return path_edges
+
+    def _route_text_for_circuit(self, circuit: Dict[str, Any], route_ctx: Dict[str, Any]) -> str:
+        from_id = str(circuit.get("from_node") or "")
+        to_id = str(circuit.get("to_node") or "")
+        if not from_id or not to_id:
+            return "(sin ruta)"
+        path = self._shortest_path_edges(from_id, to_id, route_ctx.get("adj") or {})
+        if not path:
+            return "(sin ruta)"
+        edge_by_id = route_ctx.get("edge_by_id") or {}
+        labels: List[str] = []
+        for eid in path:
+            edge = edge_by_id.get(eid) or {}
+            labels.append(self._edge_label(edge))
+        return " -> ".join(labels) if labels else "(sin ruta)"
+
+    def _edge_label(self, edge: Dict[str, Any]) -> str:
+        props = edge.get("props") if isinstance(edge.get("props"), dict) else {}
+        label = props.get("tag") or props.get("label") or props.get("name")
+        if not label:
+            label = edge.get("tag") or edge.get("label") or edge.get("name")
+        if label:
+            return str(label)
+        edge_id = str(edge.get("id") or "")
+        return edge_id[:6] if edge_id else "(sin id)"

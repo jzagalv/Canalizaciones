@@ -1,46 +1,62 @@
-Ôªø## 0.6.1 - 2026-01-24
+## 0.6.5 - 2026-01-25
+- Added: color coding for utilization (green/amber/red) across canvas/dialog/panel
+- Fixed: enforce max 2 decimals for calculated values shown in UI
+
+## 0.6.4 - 2026-01-24
+- FIX: porcentaje de ocupacion consistente entre canvas y dialogo (mismo origen de datos)
+- UI: labels de tramos estandarizados con fondo blanco y actualizacion en tiempo real
+
+## 0.6.3 - 2026-01-24
+- FIX: persistencia de edicion de tramo desde dialogo (props/kind/runs)
+- UI: eliminado panel lateral duplicado de propiedades de tramo (se usa dialogo)
+
+## 0.6.2 - 2026-01-24
+- Fixed: Circuit cable selection now uses combobox populated from active materials library
+- Added: Circuits table shows calculated route ("Recorrido") per circuit
+
+## 0.6.1 - 2026-01-24
 - Added: Cable combobox selector in Circuits
 - Added: Duct selection by standard (norma) in tramo dialog
 
 ## 0.6.0 - 2026-01-23
 - Added: Administrador de materiales_bd.lib (ventana flotante).
-- Added: Editor CRUD por categor√≠a (conductors/ducts/epc/bpc) con di√°logos espec√≠ficos.
-- Changed: Men√∫ "Librer√≠as" con acciones para materiales_bd.lib.
+- Added: Editor CRUD por categorÌa (conductors/ducts/epc/bpc) con di·logos especÌficos.
+- Changed: Men˙ "LibrerÌas" con acciones para materiales_bd.lib.
 
 ## 0.5.0 - 2026-01-23
-- Added: Ventana "Gesti√≥n de Librer√≠as y Plantillas".
-- Added: Editor CRUD de materiales por categor√≠a con di√°logos espec√≠ficos.
-- Changed: Men√∫ "Herramientas" con acceso a la nueva ventana.
+- Added: Ventana "GestiÛn de LibrerÌas y Plantillas".
+- Added: Editor CRUD de materiales por categorÌa con di·logos especÌficos.
+- Changed: Men˙ "Herramientas" con acceso a la nueva ventana.
 
 ## 0.4.0 - 2026-01-23
-- Added: Biblioteca con Drag&Drop para Equipos/GAP/C√°maras.
-- Changed: Eliminados botones de inserci√≥n manual en Canvas.
+- Added: Biblioteca con Drag&Drop para Equipos/GAP/C·maras.
+- Changed: Eliminados botones de inserciÛn manual en Canvas.
 - Fixed: compatibilidad de Drag&Drop con MIME antiguo.
 
 ## 0.3.0 - 2026-01-20
 - Canvas: soporte Drag&Drop desde Biblioteca de Equipos (.lib kind equipment_library)
-- Canvas: nodo de conexi√≥n (junction)
-- Tramos: modo auto/manual + tama√±o (cat√°logo) + cantidad (corrida simple)
-- Nueva pesta√±a: Biblioteca Equipos
-- Nueva pesta√±a: Equipos Primarios
+- Canvas: nodo de conexiÛn (junction)
+- Tramos: modo auto/manual + tamaÒo (cat·logo) + cantidad (corrida simple)
+- Nueva pestaÒa: Biblioteca Equipos
+- Nueva pestaÒa: Equipos Primarios
 - Project schema: primary_equipment
 
 # Changelog
 
 ## 0.2.0 - 2026-01-19
-- Canvas (QGraphicsScene/QGraphicsView): equipos, c√°maras y tramos conectables.
-- Edici√≥n r√°pida de tipo de tramo (duct/epc/bpc) y eliminaci√≥n de elementos.
-- Capa de c√°lculo inicial (routing + propuesta por tramo):
-  - Ruteo por camino m√°s corto en el canvas (por longitud si existe, o distancia geom√©trica).
-  - Propuesta por tramo seg√∫n cat√°logo (ducto o EPC) usando fill% por servicio.
-  - Separaci√≥n de servicios seg√∫n reglas (best-effort).
+- Canvas (QGraphicsScene/QGraphicsView): equipos, c·maras y tramos conectables.
+- EdiciÛn r·pida de tipo de tramo (duct/epc/bpc) y eliminaciÛn de elementos.
+- Capa de c·lculo inicial (routing + propuesta por tramo):
+  - Ruteo por camino m·s corto en el canvas (por longitud si existe, o distancia geomÈtrica).
+  - Propuesta por tramo seg˙n cat·logo (ducto o EPC) usando fill% por servicio.
+  - SeparaciÛn de servicios seg˙n reglas (best-effort).
 - Resultados por tramo con estado (ok/warn/error) y badge en el canvas.
 
 ## 0.1.0 - 2026-01-19
-- Estructura base del redise√±o (arquitectura mantenible).
-- Soporte inicial para Librer√≠as .lib (material_library y template_library) extra√≠das desde BD.xlsx.
-- Proyecto .proj.json con selecci√≥n de librer√≠as y perfil (convencional/digital).
-- UI m√≠nima con gestor de librer√≠as (cargar/activar/prioridad) y selector de perfil.
+- Estructura base del rediseÒo (arquitectura mantenible).
+- Soporte inicial para LibrerÌas .lib (material_library y template_library) extraÌdas desde BD.xlsx.
+- Proyecto .proj.json con selecciÛn de librerÌas y perfil (convencional/digital).
+- UI mÌnima con gestor de librerÌas (cargar/activar/prioridad) y selector de perfil.
 
 ## [0.3.1]
 - Fix IndentationError in Canvas recalc method
@@ -60,8 +76,16 @@
 - Canvas: soporte de plano de fondo (imagen) para posicionar equipos/canalizaciones de forma realista.
   - Cargar plano, ajustar a vista, bloquear/desbloquear, y control de opacidad.
   - Persistencia en Project.canvas.background (path/opacity/locked).
-  - Exportaci√≥n del canvas a PNG y PDF para adjuntar a informes.
-- Fix: CanvasTab completado (m√©todos faltantes y conexiones) y toolbar consolidada.
+  - ExportaciÛn del canvas a PNG y PDF para adjuntar a informes.
+- Fix: CanvasTab completado (mÈtodos faltantes y conexiones) y toolbar consolidada.
 - Fix: CanvasView (DnD) y CanvasItems (imports/compatibilidad NodeData) para evitar crashes.
+
+
+
+
+
+
+
+
 
 

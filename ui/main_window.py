@@ -30,7 +30,8 @@ from infra.persistence.materiales_repo import MaterialesRepo
 from domain.entities.models import LibraryRef, Project
 from domain.libraries.template_models import BaseTemplate
 from domain.materials.material_service import MaterialService
-from domain.services.engine import compute_project_solutions
+from domain.calculations.formatting import round2, util_color
+from domain.services.engine import build_circuits_by_edge_index, compute_project_solutions
 from ui.tabs.canvas_tab import CanvasTab
 from ui.tabs.circuits_tab import CircuitsTab
 from ui.tabs.primary_equipment_tab import PrimaryEquipmentTab
@@ -323,17 +324,46 @@ class MainWindow(QMainWindow):
 
         self.tab_circuits.set_effective_catalog(self._eff)
 
-        self.tab_circuits.set_effective_catalog(self._eff)
-
         solutions, warnings = compute_project_solutions(self.project, self._eff)
+        self.tab_canvas.scene.set_circuits_by_edge(build_circuits_by_edge_index(self.project))
+        self._sync_edge_fill_props(solutions)
         self.tab_results.set_results(self.project, solutions, warnings)
         self.tab_canvas.set_edge_statuses(solutions)
         self._refresh_status(extra_warnings=warnings)
+
+    def _sync_edge_fill_props(self, solutions: Dict[str, Dict]) -> None:
+        if not solutions:
+            return
+        emit = False
+        for edge_id, sol in solutions.items():
+            props = self._edge_props(edge_id)
+            fill_percent_raw = sol.get("fill_percent")
+            fill_max_raw = sol.get("fill_max_percent")
+            fill_percent = round2(fill_percent_raw)
+            fill_max = round2(fill_max_raw)
+            props["fill_percent"] = fill_percent
+            props["fill_max_percent"] = fill_max
+            props["fill_over"] = bool(sol.get("fill_over"))
+            props["fill_state"] = sol.get("fill_state") or util_color(fill_percent_raw, fill_max_raw)
+            props["group_area_sums"] = list(sol.get("group_area_sums") or [])
+            props["group_max_fills"] = list(sol.get("group_max_fills") or [])
+            self.tab_canvas.scene.set_edge_props(edge_id, props, emit=False)
+            emit = True
+        if emit:
+            self.tab_canvas.scene.signals.project_changed.emit(self.project.canvas)
+
+    def _edge_props(self, edge_id: str) -> Dict[str, object]:
+        edges = list((self.project.canvas or {}).get("edges") or [])
+        for edge in edges:
+            if str(edge.get("id")) == str(edge_id):
+                return dict(edge.get("props") or {})
+        return {}
 
     # -------------------- Refresh --------------------
     def _on_project_mutated(self) -> None:
         # mark dirty (lightweight)
         self._eff = None  # libraries/canvas/circuits may have changed
+        self.tab_canvas.scene.set_circuits_by_edge(None)
         self._refresh_title()
 
     def _refresh_all(self) -> None:

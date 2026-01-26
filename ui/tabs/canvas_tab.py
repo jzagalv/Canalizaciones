@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (
-    QComboBox,
-    QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSpinBox,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -21,6 +17,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
 )
 
+from domain.calculations.formatting import fmt_percent, util_color
 from domain.entities.models import Project
 from ui.canvas.canvas_scene import CanvasScene
 from ui.canvas.canvas_view import CanvasView
@@ -36,16 +33,16 @@ class CanvasTab(QWidget):
     def __init__(self):
         super().__init__()
         self._project: Optional[Project] = None
+        self._selection_snapshot: Dict = {}
         self.scene = CanvasScene()
         self.scene.signals.project_changed.connect(self.project_changed)
         self.scene.signals.selection_changed.connect(self.selection_changed)
+        self.scene.signals.selection_changed.connect(self._on_selection_changed)
         self.scene.signals.library_item_used.connect(self._on_library_item_used)
         self.scene.signals.library_item_released.connect(self._on_library_item_released)
         self.scene.signals.segment_double_clicked.connect(self.segment_double_clicked)
         self.scene.signals.segment_removed.connect(self.segment_removed)
 
-        self._selected_edge_id: Optional[str] = None
-        self._material: Dict = {}
         self._suspend_view_updates = False
 
         self._build_ui()
@@ -112,50 +109,21 @@ class CanvasTab(QWidget):
         self.view.view_state_changed.connect(self._on_view_state_changed)
         splitter.addWidget(self.view)
 
-        # ---------------- Properties panel ----------------
-        panel = QWidget()
-        panel_l = QVBoxLayout(panel)
-
-        gb = QGroupBox("Propiedades de tramo")
-        form = QFormLayout(gb)
-        self.lbl_sel_edge = QLabel("—")
-
-        self.cmb_kind = QComboBox()
-        self.cmb_kind.addItems(["duct", "epc", "bpc"])
-        self.cmb_kind.currentTextChanged.connect(self._on_edge_kind_changed)
-
-        self.cmb_mode = QComboBox()
-        self.cmb_mode.addItems(["auto", "manual"])
-        self.cmb_mode.currentTextChanged.connect(self._on_edge_mode_changed)
-
-        self.cmb_run_catalog = QComboBox()
-        self.cmb_run_catalog.currentTextChanged.connect(self._on_edge_run_changed)
-
-        self.spin_run_qty = QSpinBox()
-        self.spin_run_qty.setRange(1, 99)
-        self.spin_run_qty.valueChanged.connect(self._on_edge_run_changed)
-
-        form.addRow("Selección:", self.lbl_sel_edge)
-        form.addRow("Tipo:", self.cmb_kind)
-        form.addRow("Modo:", self.cmb_mode)
-        form.addRow("Catálogo:", self.cmb_run_catalog)
-        form.addRow("Cantidad:", self.spin_run_qty)
-
-        panel_l.addWidget(gb)
-        panel_l.addStretch(1)
-        splitter.addWidget(panel)
+        self.detail_panel = QWidget()
+        detail_layout = QVBoxLayout(self.detail_panel)
+        detail_layout.addWidget(QLabel("Detalle del tramo"))
+        self.lbl_detail_fill = QLabel("(sin seleccion)")
+        self.lbl_detail_fill.setWordWrap(True)
+        detail_layout.addWidget(self.lbl_detail_fill)
+        detail_layout.addStretch(1)
+        self.detail_panel.setMinimumWidth(220)
+        splitter.addWidget(self.detail_panel)
 
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
 
-        self.scene.selectionChanged.connect(self._on_scene_selection_changed)
-
     # ---------------- Integration ----------------
-    def set_material_catalog(self, material: Dict):
-        self._material = material or {}
-        self._refresh_catalog_options()
-
     def set_equipment_items(self, items_by_id: Dict[str, Dict]):
         try:
             self.scene.set_equipment_items(items_by_id)
@@ -171,6 +139,7 @@ class CanvasTab(QWidget):
         self._sync_bg_controls_from_model()
         self._apply_view_state_from_model()
         self._sync_library_usage_from_canvas()
+        self._refresh_detail_panel()
 
     def set_edge_statuses(self, solutions: Dict[str, Dict]) -> None:
         # solutions: edge_id -> {status, badge}
@@ -178,94 +147,11 @@ class CanvasTab(QWidget):
             status = sol.get("status", "none")
             badge = sol.get("badge", "")
             self.scene.set_edge_status(edge_id, status, badge)
+        self._refresh_detail_panel()
 
     # ---------------- Actions: nodes/edges ----------------
     def _on_connect_toggled(self, on: bool):
         self.scene.set_connect_mode(on)
-
-    # ---------------- Selection + edge properties ----------------
-    def _on_scene_selection_changed(self):
-        sel = self.scene.selectedItems()
-        edge = next((it for it in sel if hasattr(it, "edge_id")), None)
-        if not edge:
-            self._selected_edge_id = None
-            self.lbl_sel_edge.setText("—")
-            return
-
-        self._selected_edge_id = edge.edge_id
-        self.lbl_sel_edge.setText(edge.edge_id)
-
-        self.cmb_kind.blockSignals(True)
-        self.cmb_kind.setCurrentText(getattr(edge, "containment_kind", "duct"))
-        self.cmb_kind.blockSignals(False)
-
-        self.cmb_mode.blockSignals(True)
-        self.cmb_mode.setCurrentText(getattr(edge, "mode", "auto"))
-        self.cmb_mode.blockSignals(False)
-
-        # runs
-        self._refresh_catalog_options()
-        runs = getattr(edge, "runs", []) or []
-        if runs:
-            r0 = runs[0]
-            cid = str(r0.get("catalog_id", ""))
-            qty = int(r0.get("qty", 1) or 1)
-            self.cmb_run_catalog.blockSignals(True)
-            if cid:
-                idx = self.cmb_run_catalog.findText(cid)
-                if idx >= 0:
-                    self.cmb_run_catalog.setCurrentIndex(idx)
-            self.cmb_run_catalog.blockSignals(False)
-            self.spin_run_qty.blockSignals(True)
-            self.spin_run_qty.setValue(qty)
-            self.spin_run_qty.blockSignals(False)
-
-    def _on_edge_kind_changed(self, kind: str):
-        if not self._selected_edge_id:
-            return
-        self.scene.set_edge_kind(self._selected_edge_id, kind)
-        self._refresh_catalog_options()
-
-    def _on_edge_mode_changed(self, mode: str):
-        if not self._selected_edge_id:
-            return
-        self.scene.set_edge_mode(self._selected_edge_id, mode)
-
-    def _on_edge_run_changed(self, *_):
-        if not self._selected_edge_id:
-            return
-        cid = self.cmb_run_catalog.currentText().strip()
-        qty = int(self.spin_run_qty.value() or 1)
-        if not cid:
-            self.scene.set_edge_runs(self._selected_edge_id, [])
-            return
-        self.scene.set_edge_runs(self._selected_edge_id, [{"catalog_id": cid, "qty": qty}])
-
-    def _refresh_catalog_options(self):
-        """Populate run catalog combo filtered by current edge kind."""
-        kind = self.cmb_kind.currentText().strip() or "duct"
-
-        # Heuristic: catalog ids are keys in material dict, grouped by kind substring
-        # material schema might vary; this keeps UI functional even with partial libs.
-        ids: List[str] = []
-        if isinstance(self._material, dict):
-            ids = [str(k) for k in self._material.keys()]
-
-        if kind == "duct":
-            ids = [i for i in ids if "duct" in i.lower() or "ducto" in i.lower()] or ids
-        elif kind == "epc":
-            ids = [i for i in ids if "epc" in i.lower()] or ids
-        elif kind == "bpc":
-            ids = [i for i in ids if "bpc" in i.lower()] or ids
-
-        ids = sorted(set(ids))
-
-        self.cmb_run_catalog.blockSignals(True)
-        self.cmb_run_catalog.clear()
-        self.cmb_run_catalog.addItem("")
-        for i in ids:
-            self.cmb_run_catalog.addItem(i)
-        self.cmb_run_catalog.blockSignals(False)
 
     def _sync_library_usage_from_canvas(self) -> None:
         if not self._project:
@@ -278,6 +164,44 @@ class CanvasTab(QWidget):
 
     def _on_library_item_released(self, library_id: str) -> None:
         self.library_panel.set_library_item_state_by_id(library_id, "available")
+
+    def _on_selection_changed(self, payload: Dict) -> None:
+        self._selection_snapshot = dict(payload or {})
+        self._refresh_detail_panel()
+
+    def _refresh_detail_panel(self) -> None:
+        payload = self._selection_snapshot or {}
+        if not self._project or payload.get("kind") != "edge":
+            self.lbl_detail_fill.setText("(sin seleccion)")
+            self.lbl_detail_fill.setStyleSheet("")
+            return
+        edge_id = str(payload.get("id") or "")
+        props = self._edge_props(edge_id)
+        fill_percent = props.get("fill_percent")
+        max_fill = props.get("fill_max_percent")
+        if fill_percent is None:
+            self.lbl_detail_fill.setText("Ocupacion: (Recalcular)")
+            self.lbl_detail_fill.setStyleSheet("color: #9ca3af;")
+            return
+        fill_state = props.get("fill_state") or util_color(fill_percent, max_fill)
+        if max_fill and float(max_fill) > 0:
+            text = f"Ocupacion: {fmt_percent(fill_percent)} (max {fmt_percent(max_fill)})"
+        else:
+            text = f"Ocupacion: {fmt_percent(fill_percent)}"
+        color = {
+            "ok": "#16a34a",
+            "warn": "#f59e0b",
+            "over": "#dc2626",
+        }.get(str(fill_state), "")
+        self.lbl_detail_fill.setText(text)
+        self.lbl_detail_fill.setStyleSheet(f"color: {color};" if color else "")
+
+    def _edge_props(self, edge_id: str) -> Dict[str, object]:
+        edges = list((self._project.canvas or {}).get("edges") or []) if self._project else []
+        for edge in edges:
+            if str(edge.get("id")) == str(edge_id):
+                return dict(edge.get("props") or {})
+        return {}
 
     def _on_view_state_changed(self, state: Dict) -> None:
         if self._suspend_view_updates or not self._project:
@@ -368,3 +292,6 @@ class CanvasTab(QWidget):
             self.scene.export_to_pdf(path)
         except Exception as e:
             QMessageBox.warning(self, "Exportar PDF", f"No se pudo exportar:\n{e}")
+
+
+

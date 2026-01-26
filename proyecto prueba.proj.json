@@ -125,9 +125,31 @@
         "id": "E3",
         "from": "N3",
         "to": "N4",
-        "kind": "epc",
+        "kind": "duct",
         "mode": "manual",
-        "runs": []
+        "runs": [
+          {
+            "catalog_id": "duct_c_a_g_1_2",
+            "qty": 1
+          }
+        ],
+        "from_node": "N3",
+        "to_node": "N4",
+        "props": {
+          "tag": "T2",
+          "conduit_type": "Ducto",
+          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
+          "duct_standard": "ANSI C80.1 (c.a.g)",
+          "duct_id": "duct_c_a_g_1_2",
+          "quantity": 1,
+          "columns": 1,
+          "cables": [],
+          "fill_percent": 0.0,
+          "fill_max_percent": 40.0,
+          "fill_over": false,
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false
+        }
       },
       {
         "id": "E1",
@@ -135,7 +157,29 @@
         "to": "N3",
         "kind": "duct",
         "mode": "manual",
-        "runs": []
+        "runs": [
+          {
+            "catalog_id": "duct_c_a_g_1_2",
+            "qty": 1
+          }
+        ],
+        "from_node": "N1",
+        "to_node": "N3",
+        "props": {
+          "tag": "T1",
+          "conduit_type": "Ducto",
+          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
+          "duct_standard": "ANSI C80.1 (c.a.g)",
+          "duct_id": "duct_c_a_g_1_2",
+          "quantity": 1,
+          "columns": 1,
+          "cables": [],
+          "fill_percent": 0.0,
+          "fill_max_percent": 40.0,
+          "fill_over": false,
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false
+        }
       },
       {
         "id": "E2",
@@ -143,7 +187,29 @@
         "to": "N4",
         "kind": "duct",
         "mode": "manual",
-        "runs": []
+        "runs": [
+          {
+            "catalog_id": "duct_c_a_g_1_2",
+            "qty": 1
+          }
+        ],
+        "from_node": "N2",
+        "to_node": "N4",
+        "props": {
+          "tag": "T3",
+          "conduit_type": "Ducto",
+          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
+          "duct_standard": "ANSI C80.1 (c.a.g)",
+          "duct_id": "duct_c_a_g_1_2",
+          "quantity": 1,
+          "columns": 1,
+          "cables": [],
+          "fill_percent": 0.0,
+          "fill_max_percent": 40.0,
+          "fill_over": false,
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false
+        }
       },
       {
         "id": "E4",
@@ -151,7 +217,10 @@
         "to": "N8",
         "kind": "epc",
         "mode": "manual",
-        "runs": []
+        "runs": [],
+        "from_node": "N5",
+        "to_node": "N8",
+        "props": {}
       },
       {
         "id": "E5",
@@ -159,7 +228,10 @@
         "to": "N9",
         "kind": "epc",
         "mode": "manual",
-        "runs": []
+        "runs": [],
+        "from_node": "N6",
+        "to_node": "N9",
+        "props": {}
       },
       {
         "id": "E6",
@@ -167,7 +239,29 @@
         "to": "N8",
         "kind": "duct",
         "mode": "manual",
-        "runs": []
+        "runs": [
+          {
+            "catalog_id": "duct_c_a_g_1_2",
+            "qty": 1
+          }
+        ],
+        "from_node": "N4",
+        "to_node": "N8",
+        "props": {
+          "tag": "T4",
+          "conduit_type": "Ducto",
+          "size": "c.a.g. DN 1/2\" (ID 16.02mm)",
+          "duct_standard": "ANSI C80.1 (c.a.g)",
+          "duct_id": "duct_c_a_g_1_2",
+          "quantity": 1,
+          "columns": 1,
+          "cables": [],
+          "fill_percent": 0.0,
+          "fill_max_percent": 40.0,
+          "fill_over": false,
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false
+        }
       },
       {
         "id": "E7",
@@ -175,7 +269,10 @@
         "to": "N8",
         "kind": "epc",
         "mode": "manual",
-        "runs": []
+        "runs": [],
+        "from_node": "N9",
+        "to_node": "N8",
+        "props": {}
       },
       {
         "id": "E8",
@@ -183,7 +280,10 @@
         "to": "N10",
         "kind": "epc",
         "mode": "manual",
-        "runs": []
+        "runs": [],
+        "from_node": "N9",
+        "to_node": "N10",
+        "props": {}
       },
       {
         "id": "E9",
@@ -191,7 +291,10 @@
         "to": "N10",
         "kind": "epc",
         "mode": "manual",
-        "runs": []
+        "runs": [],
+        "from_node": "N7",
+        "to_node": "N10",
+        "props": {}
       },
       {
         "id": "E10",
@@ -199,7 +302,10 @@
         "to": "N12",
         "kind": "duct",
         "mode": "manual",
-        "runs": []
+        "runs": [],
+        "from_node": "N11",
+        "to_node": "N12",
+        "props": {}
       }
     ],
     "background": {
@@ -215,10 +321,10 @@
       "image_format": "png"
     },
     "view": {
-      "scale": 1.0200297772370104,
+      "scale": 1.1730342438225618,
       "center": [
-        4141.055579222102,
-        3185.201130893137
+        4236.022968781832,
+        3159.3280584233185
       ]
     }
   },
@@ -230,20 +336,50 @@
         "equipment_node_id": "N1",
         "name": "Nuevo circuito",
         "service": "power",
-        "cable_ref": "",
+        "cable_ref": "cond_12c_x_10_awg_apantallado",
         "qty": 1,
-        "from_node": "LCC-HT1",
-        "to_node": "LCC-H1"
+        "from_node": "N1",
+        "to_node": "N2"
       },
       {
         "id": "Ceff7f57c",
         "equipment_node_id": "N1",
         "name": "Nuevo circuito",
         "service": "power",
-        "cable_ref": "",
+        "cable_ref": "cond_12c_x_10_awg_apantallado",
         "qty": 1,
-        "from_node": "LCC-HT1",
-        "to_node": "LCC-H1"
+        "from_node": "N1",
+        "to_node": "N2"
+      },
+      {
+        "id": "C70f13260",
+        "equipment_node_id": "E1",
+        "name": "C1",
+        "service": "power",
+        "cable_ref": "cond_2c_x_10_awg_apantallado",
+        "qty": 1,
+        "from_node": "N1",
+        "to_node": "N2"
+      },
+      {
+        "id": "C81e15cb2",
+        "equipment_node_id": "E1",
+        "name": "C2",
+        "service": "power",
+        "cable_ref": "cond_2c_x_10_awg_apantallado",
+        "qty": 1,
+        "from_node": "N1",
+        "to_node": "N2"
+      },
+      {
+        "id": "C938f6319",
+        "equipment_node_id": "E1",
+        "name": "C3",
+        "service": "power",
+        "cable_ref": "cond_2c_x_10_awg_apantallado",
+        "qty": 1,
+        "from_node": "N2",
+        "to_node": "N5"
       }
     ]
   },

@@ -47,6 +47,7 @@ def compute_project_solutions(
 ) -> Tuple[
     Dict[str, List[str]],
     Dict[str, List[str]],
+    Dict[str, List[Dict[str, Any]]],
     Dict[str, Dict[str, Any]],
 ]:
     """Compute manual-only routes and fill results.
@@ -54,6 +55,7 @@ def compute_project_solutions(
     Returns:
         routes: circuito_id -> list[edge_id]
         edge_to_circuits: edge_id -> list[circuit_id]
+        canalizacion_assignments: edge_id -> list of canalizacion entries with cables/areas
         fill_results: edge_id -> dict with fill_percent, fill_max_percent, fill_over, fill_state, status
     """
     canvas = project.canvas or {'nodes': [], 'edges': []}
@@ -145,6 +147,7 @@ def compute_project_solutions(
     conductors_by_code = eff.material.get('conductors_by_code', {})
     routes: Dict[str, List[str]] = {}
     edge_to_circuits: Dict[str, List[str]] = {str(e.get('id')): [] for e in edges if e.get('id')}
+    circuit_area_map: Dict[str, Dict[str, Any]] = {}
 
     circuits = list((project.circuits or {}).get('items') or [])
     for c in circuits:
@@ -185,13 +188,45 @@ def compute_project_solutions(
         qty = int(c.get('qty', 1) or 1)
         service = str(c.get('service') or 'power')
 
+        if cid:
+            circuit_area_map[cid] = {
+                "area_cable_mm2": area,
+                "qty": qty,
+                "cable_ref": cref,
+                "circuit_name": str(c.get("name") or ""),
+            }
+
         for eid in path:
             svc_map = per_edge_services.setdefault(eid, {})
             svc_map[service] = svc_map.get(service, 0.0) + area * qty
 
+    canalizacion_assignments: Dict[str, List[Dict[str, Any]]] = {}
+    for e in edges:
+        eid = str(e.get("id") or "")
+        if not eid:
+            continue
+        props = e.get("props") if isinstance(e.get("props"), dict) else {}
+        qty = int(props.get("quantity") or 1)
+        qty = max(1, qty)
+        buckets: List[Dict[str, Any]] = [{"index": i, "cables": []} for i in range(qty)]
+        circuit_ids = list(edge_to_circuits.get(eid, []) or [])
+        for idx, cid in enumerate(circuit_ids):
+            cable_info = circuit_area_map.get(str(cid) or "")
+            if not cable_info:
+                continue
+            bucket = buckets[idx % qty]
+            bucket["cables"].append({
+                "circuit_id": str(cid),
+                "circuit_name": cable_info.get("circuit_name", ""),
+                "cable_ref": cable_info.get("cable_ref", ""),
+                "area_cable_mm2": cable_info.get("area_cable_mm2", 0.0),
+                "qty": cable_info.get("qty", 1),
+            })
+        canalizacion_assignments[eid] = buckets
+
     fill_results = _build_edge_fill_results(edges, per_edge_services, eff)
 
-    return routes, edge_to_circuits, fill_results
+    return routes, edge_to_circuits, canalizacion_assignments, fill_results
 
 
 def _build_edge_fill_results(

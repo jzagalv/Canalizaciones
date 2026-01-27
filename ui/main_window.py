@@ -341,10 +341,14 @@ class MainWindow(QMainWindow):
 
         self.tab_circuits.set_effective_catalog(self._eff)
 
-        routes, edge_to_circuits, fill_results = compute_project_solutions(self.project, self._eff)
+        routes, edge_to_circuits, canalizacion_assignments, fill_results = compute_project_solutions(
+            self.project,
+            self._eff,
+        )
         self.project._calc = {
             "routes": routes,
             "edge_to_circuits": edge_to_circuits,
+            "canalizacion_assignments": canalizacion_assignments,
             "fill_results": fill_results,
         }
         self._calc_dirty = False

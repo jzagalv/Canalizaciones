@@ -42,6 +42,12 @@ from domain.calculations.occupancy import (
 )
 from domain.calculations.formatting import fmt_percent, round2, util_color
 from domain.materials.material_service import MaterialService
+from domain.services.cable_layout import (
+    assign_circuits_to_conduits,
+    expand_cable_items,
+    layout_cables_in_circle,
+    layout_cables_in_rect,
+)
 
 
 class SectionGraphicsView(QGraphicsView):
@@ -84,6 +90,10 @@ class ConduitSegmentDialog(QDialog):
         self._loading_segment = False
         self._preview_dirty = False
         self._project = None
+        self._assignment_cache = None
+        self._assignment_signature_value = ""
+        self._assignment_dirty = False
+        self._setting_service_combo = False
 
         self._size_options = {
             "Ducto": ['1"', '2"', '3"', '4"'],
@@ -102,6 +112,8 @@ class ConduitSegmentDialog(QDialog):
         left = QWidget()
         left_layout = QVBoxLayout(left)
         splitter.addWidget(left)
+        left.setMinimumWidth(360)
+        left.setMaximumWidth(420)
 
         self.lbl_status = QLabel("")
         left_layout.addWidget(self.lbl_status)
@@ -175,13 +187,14 @@ class ConduitSegmentDialog(QDialog):
 
         canal_group = QGroupBox("Canalizaciones del tramo")
         canal_layout = QVBoxLayout(canal_group)
-        self.tbl_canalizaciones = QTableWidget(0, 3)
+        self.tbl_canalizaciones = QTableWidget(0, 4)
         self.tbl_canalizaciones.setHorizontalHeaderLabels(
-            ["CanalizaciÃ³n", "% Utilizado", "% Disponible"]
+            ["CanalizaciÃ³n", "Servicio", "% Utilizado", "% Disponible"]
         )
         self.tbl_canalizaciones.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.tbl_canalizaciones.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.tbl_canalizaciones.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.tbl_canalizaciones.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
         self.tbl_canalizaciones.verticalHeader().setVisible(False)
         self.tbl_canalizaciones.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tbl_canalizaciones.setSelectionMode(QTableWidget.NoSelection)
@@ -191,32 +204,10 @@ class ConduitSegmentDialog(QDialog):
         left_splitter.addWidget(canal_group)
         self._canal_group = canal_group
 
-        circuits_group = QGroupBox("Circuitos que pasan por este tramo")
-        circuits_layout = QVBoxLayout(circuits_group)
-        circuits_header = QHBoxLayout()
-        circuits_header.addStretch(1)
-        self.btn_refresh_circuits = QPushButton("Actualizar")
-        self.btn_refresh_circuits.clicked.connect(self._refresh_circuits_list)
-        circuits_header.addWidget(self.btn_refresh_circuits)
-        circuits_layout.addLayout(circuits_header)
-        self.tbl_circuits = QTableWidget(0, 3)
-        self.tbl_circuits.setHorizontalHeaderLabels(["TAG", "Cable", "Sección cable (mm²)"])
-        self.tbl_circuits.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.tbl_circuits.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.tbl_circuits.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.tbl_circuits.verticalHeader().setVisible(False)
-        self.tbl_circuits.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.tbl_circuits.setSelectionMode(QTableWidget.NoSelection)
-        self.tbl_circuits.setMinimumHeight(180)
-        self.tbl_circuits.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        circuits_layout.addWidget(self.tbl_circuits)
-        left_splitter.addWidget(circuits_group)
-        self._circuits_group = circuits_group
 
         left_splitter.setStretchFactor(0, 0)
         left_splitter.setStretchFactor(1, 1)
         left_splitter.setStretchFactor(2, 1)
-        left_splitter.setStretchFactor(3, 2)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch(1)
@@ -232,14 +223,19 @@ class ConduitSegmentDialog(QDialog):
         right_layout = QVBoxLayout(right)
         splitter.addWidget(right)
 
-        right_layout.addWidget(QLabel("Sección / Corte"))
+        right_splitter = QSplitter(Qt.Vertical)
+        right_layout.addWidget(right_splitter, 1)
+
+        canvas_widget = QWidget()
+        canvas_layout = QVBoxLayout(canvas_widget)
+        canvas_layout.addWidget(QLabel("Sección / Corte"))
         self.section_scene = QGraphicsScene(self)
         self.view = SectionGraphicsView(self.section_scene)
         self.view.setRenderHints(
             QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.SmoothPixmapTransform
         )
         self.view.setMinimumSize(360, 300)
-        right_layout.addWidget(self.view, 1)
+        canvas_layout.addWidget(self.view, 1)
 
         zoom_bar = QHBoxLayout()
         self.btn_zoom_out = QPushButton("-")
@@ -254,7 +250,34 @@ class ConduitSegmentDialog(QDialog):
         zoom_bar.addWidget(self.btn_fit)
         zoom_bar.addWidget(self.btn_reset)
         zoom_bar.addStretch(1)
-        right_layout.addLayout(zoom_bar)
+        canvas_layout.addLayout(zoom_bar)
+        right_splitter.addWidget(canvas_widget)
+
+        circuits_group = QGroupBox("Circuitos que pasan por este tramo")
+        circuits_layout = QVBoxLayout(circuits_group)
+        circuits_header = QHBoxLayout()
+        circuits_header.addStretch(1)
+        self.btn_refresh_circuits = QPushButton("Actualizar")
+        self.btn_refresh_circuits.clicked.connect(self._refresh_circuits_list)
+        circuits_header.addWidget(self.btn_refresh_circuits)
+        circuits_layout.addLayout(circuits_header)
+        self.tbl_circuits = QTableWidget(0, 4)
+        self.tbl_circuits.setHorizontalHeaderLabels(["TAG", "Cable", "Sección cable (mm²)", "Canalización"])
+        self.tbl_circuits.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.tbl_circuits.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.tbl_circuits.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.tbl_circuits.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.tbl_circuits.verticalHeader().setVisible(False)
+        self.tbl_circuits.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tbl_circuits.setSelectionMode(QTableWidget.NoSelection)
+        self.tbl_circuits.setMinimumHeight(180)
+        self.tbl_circuits.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        circuits_layout.addWidget(self.tbl_circuits)
+        right_splitter.addWidget(circuits_group)
+        self._circuits_group = circuits_group
+
+        right_splitter.setStretchFactor(0, 3)
+        right_splitter.setStretchFactor(1, 2)
 
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
@@ -279,6 +302,9 @@ class ConduitSegmentDialog(QDialog):
 
     def set_segment(self, segment_item) -> None:
         self._loading_segment = True
+        self._assignment_cache = None
+        self._assignment_signature_value = ""
+        self._assignment_dirty = False
         self._segment = segment_item if self._is_segment_alive(segment_item) else None
         if self._segment is None:
             self._set_form_enabled(False)
@@ -356,19 +382,20 @@ class ConduitSegmentDialog(QDialog):
         if not circuit_ids:
             self._set_circuits_placeholder("Ningun circuito pasa por este tramo")
             return
-        circuits = list((getattr(self._project, "circuits", {}) or {}).get("items") or [])
-        by_id = {str(c.get("id") or ""): c for c in circuits if c.get("id")}
-        for cid in circuit_ids:
-            circuit = by_id.get(str(cid) or "")
-            if not circuit:
-                continue
-            tag = str(circuit.get("name") or cid or "")
-            cable_label, area_mm2 = self._circuit_cable_info(circuit)
+        data = self._get_assignment_data()
+        circuits = list(data.get("circuits") or [])
+        assignments = data.get("assignments") or {}
+        for circuit in circuits:
+            tag = str(circuit.get("tag") or "")
+            cable_label = str(circuit.get("cable_label") or "")
+            area_mm2 = float(circuit.get("area_mm2") or 0.0)
+            assigned = str(assignments.get(tag) or "")
             row = self.tbl_circuits.rowCount()
             self.tbl_circuits.insertRow(row)
             self.tbl_circuits.setItem(row, 0, QTableWidgetItem(tag))
             self.tbl_circuits.setItem(row, 1, QTableWidgetItem(cable_label))
             self.tbl_circuits.setItem(row, 2, QTableWidgetItem(self._fmt2(area_mm2)))
+            self.tbl_circuits.setItem(row, 3, QTableWidgetItem(assigned))
         self.tbl_circuits.setEnabled(True)
 
     def _set_circuits_placeholder(self, text: str) -> None:
@@ -379,7 +406,224 @@ class ConduitSegmentDialog(QDialog):
         self.tbl_circuits.setItem(0, 0, item)
         self.tbl_circuits.setItem(0, 1, QTableWidgetItem(""))
         self.tbl_circuits.setItem(0, 2, QTableWidgetItem(""))
+        self.tbl_circuits.setItem(0, 3, QTableWidgetItem(""))
         self.tbl_circuits.setEnabled(False)
+
+    def _assignment_signature(self, circuits: List[Dict[str, object]], conduit_type: str, size_label: str,
+                              service_map: Dict[str, str]) -> str:
+        circuits_sig = [
+            (
+                str(c.get("tag") or ""),
+                str(c.get("service") or ""),
+                int(c.get("qty") or 1),
+                round(float(c.get("outer_diameter_mm") or 0.0), 4),
+            )
+            for c in circuits
+        ]
+        prefs_sig = sorted((str(k), str(v)) for k, v in (service_map or {}).items())
+        payload = {
+            "conduit_type": str(conduit_type or ""),
+            "size": str(size_label or ""),
+            "circuits": circuits_sig,
+            "prefs": prefs_sig,
+        }
+        return repr(payload)
+
+    def _conduit_service_map(self, labels: List[str]) -> Dict[str, str]:
+        props = self._segment_props(self._segment)
+        existing = props.get("conduit_service_by_tag") if isinstance(props.get("conduit_service_by_tag"), dict) else {}
+        service_map: Dict[str, str] = {str(k): str(v) for k, v in (existing or {}).items()}
+        changed = False
+        for tag in labels:
+            if tag not in service_map:
+                service_map[tag] = "Libre"
+                changed = True
+        if changed:
+            self._update_segment_props_partial({"conduit_service_by_tag": dict(service_map)}, emit=False)
+        return service_map
+
+    def _service_options(self, circuits: List[Dict[str, object]]) -> List[str]:
+        options = ["Libre"]
+        for c in circuits:
+            svc = str(c.get("service") or "").strip()
+            if svc and svc not in options:
+                options.append(svc)
+        return options
+
+    def _build_conduit_items(self, labels: List[str], service_map: Dict[str, str],
+                             util_area: float) -> List[Dict[str, object]]:
+        conduits = []
+        for label in labels:
+            conduits.append({
+                "tag": label,
+                "service_pref": service_map.get(label, "Libre"),
+                "area_util_mm2": util_area,
+            })
+        return conduits
+
+    def _update_segment_props_partial(self, updates: Dict[str, object], emit: bool = False) -> None:
+        if not self._is_segment_alive(self._segment):
+            return
+        props = self._segment_props(self._segment)
+        props.update(dict(updates))
+        self._segment.props = dict(props)
+        scene = self._segment.scene()
+        if scene is not None and hasattr(scene, "set_edge_props"):
+            scene.set_edge_props(self._segment.edge_id, props, emit=emit)
+
+    def _compute_conduit_stats(
+        self,
+        conduits: List[Dict[str, object]],
+        circuits: List[Dict[str, object]],
+        assignments: Dict[str, str],
+    ) -> Dict[str, Dict[str, float]]:
+        stats: Dict[str, Dict[str, float]] = {}
+        used_by_tag: Dict[str, float] = {}
+        for c in circuits:
+            ctag = str(c.get("tag") or "")
+            area = float(c.get("area_mm2") or 0.0)
+            tag = str(assignments.get(ctag) or "")
+            if not tag:
+                continue
+            used_by_tag[tag] = used_by_tag.get(tag, 0.0) + area
+        for conduit in conduits:
+            tag = str(conduit.get("tag") or "")
+            util = float(conduit.get("area_util_mm2") or 0.0)
+            used = used_by_tag.get(tag, 0.0)
+            fill_pct = used / util * 100.0 if util > 0 else 0.0
+            stats[tag] = {
+                "used_mm2": used,
+                "util_mm2": util,
+                "fill_pct": fill_pct,
+                "avail_pct": max(0.0, 100.0 - fill_pct),
+            }
+        return stats
+
+    def _build_circuit_items(self, circuit_ids: List[str]) -> List[Dict[str, object]]:
+        circuits = list((getattr(self._project, "circuits", {}) or {}).get("items") or [])
+        by_id = {str(c.get("id") or ""): c for c in circuits if c.get("id")}
+        items: List[Dict[str, object]] = []
+        for cid in circuit_ids:
+            circuit = by_id.get(str(cid) or "")
+            if not circuit:
+                continue
+            info = self._circuit_layout_info(circuit)
+            if not info.get("tag"):
+                continue
+            items.append(info)
+        return items
+
+    def _circuit_layout_info(self, circuit: Dict[str, object]) -> Dict[str, object]:
+        tag = str(circuit.get("name") or circuit.get("id") or "")
+        qty = int(circuit.get("qty", 1) or 1)
+        service = str(circuit.get("service") or "").strip()
+        cable_ref = str(circuit.get("cable_ref") or "")
+        snap = circuit.get("cable_snapshot") if isinstance(circuit.get("cable_snapshot"), dict) else None
+        name = ""
+        if snap:
+            name = str(snap.get("name") or snap.get("code") or "")
+            if not service:
+                service = str(snap.get("service") or "")
+        if not name and cable_ref and self._material_service:
+            item = self._material_service.get_conductor_by_uid(cable_ref)
+            if not item:
+                item = self._material_service.get_conductor_by_code(cable_ref)
+            if item:
+                name = str(item.get("name") or item.get("code") or "")
+                if not service:
+                    service = str(item.get("service") or "")
+        if not service:
+            service = "power"
+        outer_diameter = 0.0
+        if snap:
+            try:
+                outer_diameter = float(snap.get("outer_diameter_mm") or 0.0)
+            except Exception:
+                outer_diameter = 0.0
+        if outer_diameter <= 0 and cable_ref and self._material_service:
+            outer_diameter = float(self._material_service.get_cable_outer_diameter(cable_ref) or 0.0)
+        area_one = 0.0
+        if outer_diameter > 0:
+            area_one = math.pi * (outer_diameter / 2.0) ** 2
+        area_total = area_one * max(1, qty)
+        label = name or cable_ref or tag
+        if service:
+            label = f"{label} ({service})"
+        return {
+            "tag": tag,
+            "service": service,
+            "qty": qty,
+            "outer_diameter_mm": outer_diameter,
+            "area_mm2": area_total,
+            "cable_label": label,
+        }
+
+    def _get_assignment_data(self) -> Dict[str, object]:
+        if not self._is_segment_alive(self._segment):
+            return {
+                "circuits": [],
+                "conduits": [],
+                "assignments": {},
+                "stats": {},
+                "service_map": {},
+            }
+        calc = self._calc_context()
+        edge_to_circuits = calc.get("edge_to_circuits") if calc else None
+        if not isinstance(edge_to_circuits, dict):
+            return {
+                "circuits": [],
+                "conduits": [],
+                "assignments": {},
+                "stats": {},
+                "service_map": {},
+            }
+        circuit_ids = list(edge_to_circuits.get(self._segment.edge_id, []) or [])
+        circuits = self._build_circuit_items(circuit_ids)
+
+        props = self._segment_props(self._segment)
+        tag = str(props.get("tag") or "").strip()
+        qty = max(1, int(props.get("quantity") or 1))
+        conduit_type = self.cmb_type.currentText().strip()
+        size = self.cmb_size.currentText().strip()
+        duct_id = self._current_duct_uid() if conduit_type == "Ducto" else None
+        size_label = self._current_duct_label() or size if conduit_type == "Ducto" else size
+        util_area = self._usable_area_mm2(conduit_type, size_label, duct_id)
+
+        labels = self._canalizacion_labels(tag, qty)
+        service_map = self._conduit_service_map(labels)
+        conduits = self._build_conduit_items(labels, service_map, util_area)
+
+        signature = self._assignment_signature(circuits, conduit_type, size_label, service_map)
+        props_signature = str(props.get("assignment_signature") or "")
+        existing_assignment = props.get("circuit_assignment") if isinstance(props.get("circuit_assignment"), dict) else {}
+
+        circuit_tags = [str(c.get("tag") or "") for c in circuits]
+        valid_conduit_tags = {str(c.get("tag") or "") for c in conduits}
+        has_all = all(tag in existing_assignment for tag in circuit_tags)
+        assigned_valid = all(str(existing_assignment.get(tag) or "") in valid_conduit_tags for tag in circuit_tags)
+        use_existing = bool(existing_assignment) and not self._assignment_dirty and signature == props_signature and has_all and assigned_valid
+
+        if use_existing:
+            assignments = {tag: str(existing_assignment.get(tag) or "") for tag in circuit_tags}
+            stats = self._compute_conduit_stats(conduits, circuits, assignments)
+        else:
+            assignments, stats = assign_circuits_to_conduits(circuits, conduits)
+            self._update_segment_props_partial({
+                "circuit_assignment": dict(assignments),
+                "conduit_service_by_tag": dict(service_map),
+                "assignment_signature": signature,
+            }, emit=False)
+            self._assignment_dirty = False
+
+        self._assignment_cache = {
+            "circuits": circuits,
+            "conduits": conduits,
+            "assignments": assignments,
+            "stats": stats,
+            "service_map": service_map,
+        }
+        self._assignment_signature_value = signature
+        return self._assignment_cache
 
     def _refresh_canalizacion_table(self) -> None:
         if not hasattr(self, "tbl_canalizaciones"):
@@ -388,57 +632,65 @@ class ConduitSegmentDialog(QDialog):
         if not self._is_segment_alive(self._segment):
             self._set_canalizaciones_placeholder("Selecciona un tramo para ver su uso")
             return
-
-        props = self._segment_props(self._segment)
-        tag = str(props.get("tag") or "").strip()
-        qty = int(props.get("quantity") or 1)
-        qty = max(1, qty)
-
-        conduit_type = self.cmb_type.currentText().strip()
-        size = self.cmb_size.currentText().strip()
-        duct_id = self._current_duct_uid() if conduit_type == "Ducto" else None
-        size_label = self._current_duct_label() or size if conduit_type == "Ducto" else size
-        usable_area = self._usable_area_mm2(conduit_type, size_label, duct_id)
-
         calc = self._calc_context()
-        assignments = calc.get("canalizacion_assignments") if calc else None
-        if not isinstance(assignments, dict):
-            self._set_canalizaciones_placeholder("Ejecuta Recalcular para ver uso por canalizaciÃ³n")
+        edge_to_circuits = calc.get("edge_to_circuits") if calc else None
+        if not isinstance(edge_to_circuits, dict):
+            self._set_canalizaciones_placeholder("Ejecuta Recalcular para ver uso por canalizaci????n")
             return
 
-        per_edge = assignments.get(self._segment.edge_id)
-        if not isinstance(per_edge, list):
-            self._set_canalizaciones_placeholder("Ejecuta Recalcular para ver uso por canalizaciÃ³n")
+        data = self._get_assignment_data()
+        conduits = list(data.get("conduits") or [])
+        stats = data.get("stats") or {}
+        service_map = data.get("service_map") or {}
+        circuits = list(data.get("circuits") or [])
+        if not conduits:
+            self._set_canalizaciones_placeholder("Ejecuta Recalcular para ver uso por canalizaci????n")
             return
 
-        labels = self._canalizacion_labels(tag, qty)
-        for idx in range(qty):
-            entry = per_edge[idx] if idx < len(per_edge) else {}
-            cables = list(entry.get("cables") or [])
-            used_mm2 = 0.0
-            for cable in cables:
-                try:
-                    area = float(cable.get("area_cable_mm2") or 0.0)
-                except Exception:
-                    area = 0.0
-                try:
-                    qty_cable = int(cable.get("qty") or 1)
-                except Exception:
-                    qty_cable = 1
-                used_mm2 += area * max(1, qty_cable)
-
-            used_pct = 0.0
-            if usable_area > 0:
-                used_pct = used_mm2 / usable_area * 100.0
-            avail_pct = max(0.0, 100.0 - used_pct)
+        options = self._service_options(circuits)
+        self._setting_service_combo = True
+        for conduit in conduits:
+            tag = str(conduit.get("tag") or "")
+            service_pref = str(service_map.get(tag) or "Libre")
+            stat = stats.get(tag, {})
+            used_pct = float(stat.get("fill_pct") or 0.0)
+            avail_pct = float(stat.get("avail_pct") or 0.0)
 
             row = self.tbl_canalizaciones.rowCount()
             self.tbl_canalizaciones.insertRow(row)
-            self.tbl_canalizaciones.setItem(row, 0, QTableWidgetItem(labels[idx]))
-            self.tbl_canalizaciones.setItem(row, 1, QTableWidgetItem(fmt_percent(round2(used_pct))))
-            self.tbl_canalizaciones.setItem(row, 2, QTableWidgetItem(fmt_percent(round2(avail_pct))))
+            self.tbl_canalizaciones.setItem(row, 0, QTableWidgetItem(tag))
 
+            combo = QComboBox()
+            combo.setEditable(True)
+            combo.blockSignals(True)
+            for opt in options:
+                combo.addItem(opt)
+            if service_pref and service_pref not in options:
+                combo.addItem(service_pref)
+            combo.setCurrentText(service_pref)
+            combo.blockSignals(False)
+            combo.currentTextChanged.connect(lambda value, t=tag: self._on_conduit_service_changed(t, value))
+            self.tbl_canalizaciones.setCellWidget(row, 1, combo)
+
+            self.tbl_canalizaciones.setItem(row, 2, QTableWidgetItem(fmt_percent(round2(used_pct))))
+            self.tbl_canalizaciones.setItem(row, 3, QTableWidgetItem(fmt_percent(round2(avail_pct))))
+
+        self._setting_service_combo = False
         self.tbl_canalizaciones.setEnabled(True)
+
+    def _on_conduit_service_changed(self, conduit_tag: str, value: str) -> None:
+        if self._loading_segment:
+            return
+        if self._setting_service_combo:
+            return
+        props = self._segment_props(self._segment)
+        service_map = props.get("conduit_service_by_tag") if isinstance(props.get("conduit_service_by_tag"), dict) else {}
+        service_map = {str(k): str(v) for k, v in (service_map or {}).items()}
+        service_map[str(conduit_tag)] = str(value or "")
+        self._assignment_dirty = True
+        self._update_segment_props_partial({"conduit_service_by_tag": dict(service_map)}, emit=False)
+        self._refresh_circuits_list()
+        self._render_section()
 
     def _set_canalizaciones_placeholder(self, text: str) -> None:
         self.tbl_canalizaciones.setRowCount(0)
@@ -448,6 +700,7 @@ class ConduitSegmentDialog(QDialog):
         self.tbl_canalizaciones.setItem(0, 0, item)
         self.tbl_canalizaciones.setItem(0, 1, QTableWidgetItem(""))
         self.tbl_canalizaciones.setItem(0, 2, QTableWidgetItem(""))
+        self.tbl_canalizaciones.setItem(0, 3, QTableWidgetItem(""))
         self.tbl_canalizaciones.setEnabled(False)
 
     def _canalizacion_labels(self, base: str, qty: int) -> List[str]:
@@ -590,6 +843,9 @@ class ConduitSegmentDialog(QDialog):
                 "quantity": 1,
                 "columns": 3,
                 "cables": [],
+                "conduit_service_by_tag": {},
+                "circuit_assignment": {},
+                "assignment_signature": "",
                 "duct_spacing_mm": None,
                 "duct_spacing_custom": False,
             }
@@ -647,6 +903,7 @@ class ConduitSegmentDialog(QDialog):
     def _on_type_changed(self, text: str) -> None:
         if not self._loading_segment:
             self._preview_dirty = True
+        self._assignment_dirty = True
         self._reload_sizes_for_type(text)
         self._update_type_controls_visibility(text)
         if text.strip() == "Ducto" and not self._spacing_custom:
@@ -658,6 +915,7 @@ class ConduitSegmentDialog(QDialog):
     def _on_size_changed(self, text: str) -> None:
         if not self._loading_segment:
             self._preview_dirty = True
+        self._assignment_dirty = True
         if self.cmb_type.currentText().strip() == "Ducto" and not self._spacing_custom:
             self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_uid())
         self._render_section()
@@ -685,6 +943,7 @@ class ConduitSegmentDialog(QDialog):
     def _on_qty_changed(self, value: int) -> None:
         if not self._loading_segment:
             self._preview_dirty = True
+        self._assignment_dirty = True
         if self._spacing_is_applicable() and not self._spacing_custom:
             self._apply_default_spacing_for_size(self._current_duct_label(), self._current_duct_uid())
         self._update_spacing_visibility()
@@ -707,6 +966,7 @@ class ConduitSegmentDialog(QDialog):
         if self._loading_segment:
             return
         self._preview_dirty = True
+        self._assignment_dirty = True
         self._sync_preview_props()
 
     def _apply_to_segment(self) -> None:
@@ -814,7 +1074,32 @@ class ConduitSegmentDialog(QDialog):
         n, cols = self._sync_columns()
         rows = (n + cols - 1) // cols
         gap_px = 0.0
-        cable_groups = self._split_cables(n, self._expand_cables(self._segment_cables()))
+        assignment_data = self._get_assignment_data()
+        circuits = list(assignment_data.get("circuits") or [])
+        assignments = assignment_data.get("assignments") or {}
+        conduit_labels = self._canalizacion_labels(tag, n)
+        cable_items_by_label = {label: [] for label in conduit_labels}
+        palette = [
+            QColor("#bae6fd"),
+            QColor("#bbf7d0"),
+            QColor("#fde68a"),
+            QColor("#fecdd3"),
+            QColor("#ddd6fe"),
+            QColor("#fed7aa"),
+        ]
+        color_map: Dict[str, QColor] = {}
+        for idx, circuit in enumerate(circuits):
+            ctag = str(circuit.get("tag") or "")
+            color_map[ctag] = palette[idx % len(palette)]
+            assigned = str(assignments.get(ctag) or "")
+            if assigned and assigned in cable_items_by_label:
+                cable_items_by_label[assigned].extend(
+                    expand_cable_items(
+                        ctag,
+                        float(circuit.get("outer_diameter_mm") or 0.0),
+                        int(circuit.get("qty") or 1),
+                    )
+                )
 
         if conduit_type == "Ducto":
             duct_id = self._current_duct_uid()
@@ -851,14 +1136,38 @@ class ConduitSegmentDialog(QDialog):
                 self.section_scene.addItem(inner)
                 items.extend([outer, inner])
 
-                cable_items, overfull = self._draw_cables_in_circle(
-                    x + inner_margin,
-                    y + inner_margin,
-                    inner_px,
-                    inner_mm,
-                    cable_groups[i],
+                conduit_label = conduit_labels[i] if i < len(conduit_labels) else ""
+                cable_items = cable_items_by_label.get(conduit_label, [])
+                cable_positions = layout_cables_in_circle(
+                    {"cx": 0.0, "cy": 0.0, "inner_diameter_mm": inner_mm},
+                    cable_items,
+                    spacing_mm=1.0,
                 )
-                items.extend(cable_items)
+                overfull = False
+                scale = inner_px / inner_mm if inner_mm > 0 else 1.0
+                center_x = x + inner_margin + inner_px / 2.0
+                center_y = y + inner_margin + inner_px / 2.0
+                for pos in cable_positions:
+                    d_mm = float(pos.get("d_mm") or 0.0)
+                    if d_mm <= 0:
+                        continue
+                    d_px = d_mm * scale
+                    px = center_x + float(pos.get("x_mm") or 0.0) * scale
+                    py = center_y - float(pos.get("y_mm") or 0.0) * scale
+                    overflow = bool(pos.get("overflow"))
+                    overfull = overfull or overflow
+                    item = QGraphicsEllipseItem(px - d_px / 2.0, py - d_px / 2.0, d_px, d_px)
+                    color = color_map.get(str(pos.get("circuit_tag") or ""), QColor("#e5e7eb"))
+                    if overflow:
+                        pen = QPen(QColor("#ef4444"), 1.2)
+                        color = QColor(color)
+                        color.setAlpha(140)
+                    else:
+                        pen = self._cable_pen()
+                    item.setPen(pen)
+                    item.setBrush(QBrush(color))
+                    self.section_scene.addItem(item)
+                    items.append(item)
                 if overfull:
                     marker = QGraphicsEllipseItem(
                         x + inner_margin + 1.0,
@@ -892,16 +1201,36 @@ class ConduitSegmentDialog(QDialog):
                 profile = self._add_u_profile(x, y, w, h, lip, pen)
                 items.append(profile)
 
-                cable_items, overfull = self._draw_cables_in_rect(
-                    x,
-                    y,
-                    w,
-                    h,
-                    w_mm,
-                    h_mm,
-                    cable_groups[i],
+                conduit_label = conduit_labels[i] if i < len(conduit_labels) else ""
+                cable_items = cable_items_by_label.get(conduit_label, [])
+                cable_positions = layout_cables_in_rect(
+                    {"x0": 0.0, "y0": 0.0, "width_mm": w_mm, "height_mm": h_mm},
+                    cable_items,
+                    spacing_mm=1.0,
                 )
-                items.extend(cable_items)
+                scale = min(w / w_mm if w_mm > 0 else 1.0, h / h_mm if h_mm > 0 else 1.0)
+                overfull = False
+                for pos in cable_positions:
+                    d_mm = float(pos.get("d_mm") or 0.0)
+                    if d_mm <= 0:
+                        continue
+                    d_px = d_mm * scale
+                    px = x + float(pos.get("x_mm") or 0.0) * scale
+                    py = y + (h_mm - float(pos.get("y_mm") or 0.0)) * scale
+                    overflow = bool(pos.get("overflow"))
+                    overfull = overfull or overflow
+                    item = QGraphicsEllipseItem(px - d_px / 2.0, py - d_px / 2.0, d_px, d_px)
+                    color = color_map.get(str(pos.get("circuit_tag") or ""), QColor("#e5e7eb"))
+                    if overflow:
+                        pen = QPen(QColor("#ef4444"), 1.2)
+                        color = QColor(color)
+                        color.setAlpha(140)
+                    else:
+                        pen = self._cable_pen()
+                    item.setPen(pen)
+                    item.setBrush(QBrush(color))
+                    self.section_scene.addItem(item)
+                    items.append(item)
                 if overfull:
                     marker = QGraphicsPathItem()
                     marker.setPath(self._rect_marker_path(x, y, w, h))

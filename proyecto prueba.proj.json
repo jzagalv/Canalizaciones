@@ -68,7 +68,6 @@
           "conduit_type": "Ducto",
           "size": "PVC DN 40 mm (ID 34.8mm)",
           "duct_standard": "Schedule 40 (PVC)",
-          "duct_id": "duct_pvc_40_mm",
           "quantity": 1,
           "columns": 1,
           "cables": [],
@@ -77,7 +76,8 @@
           "fill_percent": 84.95,
           "fill_max_percent": 40.0,
           "fill_over": true,
-          "fill_state": "over"
+          "fill_state": "over",
+          "duct_uid": "5a318c0a-c59d-46f2-8327-2a5e0ea38e91"
         }
       },
       {
@@ -99,7 +99,6 @@
           "conduit_type": "Ducto",
           "size": "PVC DN 20 mm (ID 15.6mm)",
           "duct_standard": "Schedule 40 (PVC)",
-          "duct_id": "duct_pvc_20_mm",
           "quantity": 1,
           "columns": 1,
           "cables": [],
@@ -108,7 +107,8 @@
           "fill_percent": 0.0,
           "fill_max_percent": 40.0,
           "fill_over": false,
-          "fill_state": "ok"
+          "fill_state": "ok",
+          "duct_uid": "81facc08-5066-49d1-b84e-ee4d10384001"
         }
       },
       {
@@ -130,7 +130,6 @@
           "conduit_type": "Ducto",
           "size": "PVC DN 20 mm (ID 15.6mm)",
           "duct_standard": "Schedule 40 (PVC)",
-          "duct_id": "duct_pvc_20_mm",
           "quantity": 1,
           "columns": 1,
           "cables": [],
@@ -139,7 +138,8 @@
           "fill_percent": 0.0,
           "fill_max_percent": 40.0,
           "fill_over": false,
-          "fill_state": "ok"
+          "fill_state": "ok",
+          "duct_uid": "81facc08-5066-49d1-b84e-ee4d10384001"
         }
       }
     ],
@@ -158,8 +158,8 @@
     "view": {
       "scale": 0.9609154627008356,
       "center": [
-        4165.81911248343,
-        3333.279694550194
+        4157.493718304098,
+        3298.937443560448
       ]
     }
   },
@@ -171,20 +171,51 @@
         "equipment_node_id": "N1",
         "name": "C1",
         "service": "power",
-        "cable_ref": "cond_12c_x_10_awg_apantallado",
+        "cable_ref": "23e7d828-0c10-45fa-b3da-e4c18e06c81f",
         "qty": 1,
         "from_node": "N1",
-        "to_node": "N2"
+        "to_node": "N2",
+        "cable_snapshot": {
+          "uid": "23e7d828-0c10-45fa-b3da-e4c18e06c81f",
+          "code": "cond_12c_x_10_awg_apantallado",
+          "name": "12c x 10 AWG - Apantallado",
+          "service": "power",
+          "outer_diameter_mm": 24.0
+        }
       },
       {
         "id": "C0df1bdce",
         "equipment_node_id": "N1",
         "name": "C2",
         "service": "power",
-        "cable_ref": "cond_12c_x_12_awg_apantallado",
+        "cable_ref": "9e539c45-b1ec-436e-94e8-534c86551c2e",
         "qty": 1,
         "from_node": "N1",
-        "to_node": "N2"
+        "to_node": "N2",
+        "cable_snapshot": {
+          "uid": "9e539c45-b1ec-436e-94e8-534c86551c2e",
+          "code": "cond_12c_x_12_awg_apantallado",
+          "name": "12c x 12 AWG - Apantallado",
+          "service": "power",
+          "outer_diameter_mm": 21.28
+        }
+      },
+      {
+        "id": "Ccb99cb02",
+        "equipment_node_id": "N1",
+        "name": "C3",
+        "service": "power",
+        "cable_ref": "6685abee-5d44-40ec-aaac-9ca172863607",
+        "qty": 1,
+        "from_node": "N1",
+        "to_node": "N2",
+        "cable_snapshot": {
+          "uid": "6685abee-5d44-40ec-aaac-9ca172863607",
+          "code": "cond_2c_x_12_awg_apantallado",
+          "name": "2c x 12 AWG - Apantallado",
+          "service": "power",
+          "outer_diameter_mm": 13.24
+        }
       }
     ]
   },

@@ -120,6 +120,10 @@ class LibraryPanel(QWidget):
         self._used_library_ids = {str(uid) for uid in (used_ids or []) if uid}
         self._apply_used_state()
 
+    def update_library_tree_used_markers(self, used_ids: Iterable[str]) -> None:
+        self._used_library_ids = {str(uid) for uid in (used_ids or []) if uid}
+        self._apply_used_state()
+
     def set_library_item_state_by_id(self, library_id: str, state: str) -> None:
         if not library_id:
             return

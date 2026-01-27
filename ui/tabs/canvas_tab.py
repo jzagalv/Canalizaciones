@@ -132,6 +132,9 @@ class CanvasTab(QWidget):
         except Exception:
             pass
 
+    def refresh_library_used_markers(self) -> None:
+        self._sync_library_usage_from_canvas()
+
     def set_project(self, project: Project) -> None:
         self._project = project
         self.scene.set_project_canvas(project.canvas)
@@ -156,8 +159,17 @@ class CanvasTab(QWidget):
     def _sync_library_usage_from_canvas(self) -> None:
         if not self._project:
             return
-        used_ids = {str(n.get("library_item_id")) for n in (self._project.canvas.get("nodes") or []) if n.get("library_item_id")}
-        self.library_panel.set_used_library_ids(used_ids)
+        used_ids = self.get_used_equipment_ids()
+        self.library_panel.update_library_tree_used_markers(used_ids)
+
+    def get_used_equipment_ids(self) -> set[str]:
+        if not self._project:
+            return set()
+        return {
+            str(n.get("library_item_id"))
+            for n in (self._project.canvas.get("nodes") or [])
+            if n.get("library_item_id")
+        }
 
     def _on_library_item_used(self, library_id: str) -> None:
         self.library_panel.set_library_item_state_by_id(library_id, "used")

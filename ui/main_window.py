@@ -771,6 +771,7 @@ class MainWindow(QMainWindow):
                 items_by_id[str(equip_id)] = it
         self.tab_canvas.set_equipment_items(items_by_id)
         self.tab_equipment_lib.set_equipment_items(items_by_id)
+        self.tab_canvas.refresh_library_used_markers()
 
     def _project_dialog_dir(self) -> str:
         last_path = self._app_config.last_project_path

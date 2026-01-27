@@ -53,7 +53,18 @@ def assign_circuits_to_conduits(
                 free.append(conduit)
             else:
                 rest.append(conduit)
-        candidates = pref + free + rest
+        def _by_used_first(items: List[Dict[str, object]]) -> List[Dict[str, object]]:
+            used = []
+            empty = []
+            for item in items:
+                ctag = str(item.get("tag") or "")
+                if used_by_tag.get(ctag, 0.0) > 0.0:
+                    used.append(item)
+                else:
+                    empty.append(item)
+            return used + empty
+
+        candidates = _by_used_first(pref) + _by_used_first(free) + _by_used_first(rest)
         if not candidates:
             continue
 
@@ -66,11 +77,14 @@ def assign_circuits_to_conduits(
                 util = 1.0
             used = used_by_tag.get(ctag, 0.0)
             new_fill = (used + area_i) / util * 100.0
-            penalty_over = max(0.0, new_fill - max_fill_percent) * w_over
             pref_value = _service_pref(conduit)
             mismatch = pref_value and pref_value != "Libre" and pref_value != service
             penalty_mismatch = w_mismatch if mismatch else 0.0
-            score = new_fill + penalty_over + penalty_mismatch
+            if new_fill <= max_fill_percent:
+                score = (max_fill_percent - new_fill)
+            else:
+                score = 1e6 + (new_fill - max_fill_percent) * w_over
+            score += penalty_mismatch
             if best_score is None or score < best_score:
                 best_score = score
                 best = conduit

@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+from domain.materials.material_ids import normalize_material_library
+
 
 class MaterialesBdError(Exception):
     pass
@@ -89,7 +91,9 @@ def load_materiales_bd(path: str) -> Dict[str, Any]:
     cont.setdefault("bpc", [])
     data["containments"] = cont
 
-    return _migrate_trays(data)
+    data = _migrate_trays(data)
+    normalize_material_library(data)
+    return data
 
 
 def save_materiales_bd(path: str, data: Dict[str, Any]) -> None:
@@ -104,6 +108,7 @@ def save_materiales_bd(path: str, data: Dict[str, Any]) -> None:
     doc.setdefault("rules", base["rules"])
 
     doc = _migrate_trays(doc)
+    normalize_material_library(doc)
     cont = doc.get("containments") or {}
     cont.setdefault("ducts", [])
     cont.setdefault("epc", [])

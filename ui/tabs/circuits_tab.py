@@ -305,12 +305,12 @@ class CircuitsTab(QWidget):
         combo.setProperty("missing_cable", False)
         service_norm = str(service or "").strip().lower() or "power"
         cables = self._list_cables_for_service(service_norm)
-        valid_ids = [str(c.get("id") or "") for c in cables if c.get("id")]
+        valid_ids = [str(c.get("uid") or "") for c in cables if c.get("uid")]
         if cables:
             combo.addItem("(sin selecciÃ³n)", "")
             for cable in cables:
-                cid = str(cable.get("id") or "")
-                name = str(cable.get("name") or cable.get("Nombre") or cid)
+                cid = str(cable.get("uid") or "")
+                name = self._cable_label(cable)
                 combo.addItem(name, cid)
         else:
             combo.addItem("(sin cables compatibles)", "")
@@ -338,24 +338,29 @@ class CircuitsTab(QWidget):
         return combo, missing
 
     def _label_for_missing_cable(self, cable_id: str, service_norm: str) -> str:
-        cable = self._find_cable_by_id(cable_id)
+        cable = self._find_cable_by_uid_or_code(cable_id)
         if not cable:
             return f"(no encontrado) {cable_id}"
-        name = str(cable.get("name") or cable_id)
+        name = self._cable_label(cable) or cable_id
         found_service = str(cable.get("service") or "").strip().lower()
         if found_service and found_service != service_norm:
             return f"(no coincide) {name}"
         return f"(no encontrado) {name}"
 
-    def _find_cable_by_id(self, cable_id: str) -> Optional[Dict[str, object]]:
-        cable_id_norm = str(cable_id or "").strip().lower()
+    def _find_cable_by_uid_or_code(self, cable_ref: str) -> Optional[Dict[str, object]]:
+        cable_id_norm = str(cable_ref or "").strip().lower()
         if self._eff:
-            for cable in (self._eff.material.get("conductors_by_id") or {}).values():
-                if str(cable.get("id") or "").strip().lower() == cable_id_norm:
+            for cable in (self._eff.material.get("conductors_by_uid") or {}).values():
+                if str(cable.get("uid") or "").strip().lower() == cable_id_norm:
+                    return cable
+            for cable in (self._eff.material.get("conductors_by_code") or {}).values():
+                if str(cable.get("code") or "").strip().lower() == cable_id_norm:
                     return cable
         if self._material_service:
             for cable in self._material_service.list_conductors(None):
-                if str(cable.get("id") or "").strip().lower() == cable_id_norm:
+                if str(cable.get("uid") or "").strip().lower() == cable_id_norm:
+                    return cable
+                if str(cable.get("code") or "").strip().lower() == cable_id_norm:
                     return cable
         return None
 
@@ -363,11 +368,21 @@ class CircuitsTab(QWidget):
         if not self._eff:
             return []
         service_norm = str(service or "").strip().lower()
-        cables = list((self._eff.material.get("conductors_by_id") or {}).values())
+        cables = list((self._eff.material.get("conductors_by_uid") or {}).values())
         if service_norm:
             cables = [c for c in cables if str(c.get("service") or "").strip().lower() == service_norm]
-        cables.sort(key=lambda c: str(c.get("name") or c.get("id") or ""))
+        cables.sort(key=lambda c: self._cable_label(c))
         return cables
+
+    def _cable_label(self, cable: Dict[str, object]) -> str:
+        return str(
+            cable.get("name")
+            or cable.get("label")
+            or cable.get("Nombre")
+            or cable.get("code")
+            or cable.get("id")
+            or ""
+        )
 
     def _on_cable_combo_changed(self, row: int) -> None:
         if not self._project:
@@ -386,6 +401,10 @@ class CircuitsTab(QWidget):
             return
         cable_id = str(combo.currentData() or "")
         c["cable_ref"] = cable_id
+        if self._material_service and cable_id:
+            snap = self._material_service.build_conductor_snapshot(cable_id)
+            if snap:
+                c["cable_snapshot"] = snap
         self._sync_cable_combo_warning(combo)
         self._update_row_status(row)
         self.project_changed.emit()

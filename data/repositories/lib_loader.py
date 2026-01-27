@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from domain.materials.material_ids import normalize_material_library
 
 class LibError(Exception):
     pass
@@ -15,6 +16,7 @@ class LibError(Exception):
 class LibLoadResult:
     doc: Dict[str, Any]
     warnings: List[str]
+    changed: bool = False
 
 
 def load_lib(path: str) -> LibLoadResult:
@@ -35,4 +37,8 @@ def load_lib(path: str) -> LibLoadResult:
     if kind not in ('material_library', 'template_library', 'equipment_library'):
         raise LibError(f"kind no soportado: {kind}")
 
-    return LibLoadResult(doc=data, warnings=warnings)
+    changed = False
+    if kind == "material_library":
+        changed = normalize_material_library(data, warnings=warnings, source_label=p.name)
+
+    return LibLoadResult(doc=data, warnings=warnings, changed=changed)

@@ -38,7 +38,7 @@ class ConductorEditorDialog(QDialog):
         self.ed_model = QLineEdit()
         self.ed_tags = QLineEdit()
 
-        form.addRow("ID:", self.ed_id)
+        form.addRow("Código:", self.ed_id)
         form.addRow("Nombre:", self.ed_name)
         form.addRow("Servicio:", self.cmb_service)
         form.addRow("Diámetro exterior (mm):", self.ed_outer_d)
@@ -55,7 +55,7 @@ class ConductorEditorDialog(QDialog):
             self._load_data(data)
 
     def _load_data(self, data: Dict[str, Any]) -> None:
-        self.ed_id.setText(str(data.get("id", "")))
+        self.ed_id.setText(str(data.get("code") or data.get("id") or ""))
         self.ed_name.setText(str(data.get("name", "")))
         self.cmb_service.setCurrentText(str(data.get("service", "")))
         self.ed_outer_d.setText(str(data.get("outer_diameter_mm", "")))
@@ -84,10 +84,10 @@ class ConductorEditorDialog(QDialog):
         code = self.ed_id.text().strip()
         name = self.ed_name.text().strip()
         if not code or not name:
-            QMessageBox.warning(self, "Validación", "ID y nombre son obligatorios.")
+            QMessageBox.warning(self, "Validación", "Código y nombre son obligatorios.")
             return
         if code in self._existing_ids:
-            QMessageBox.warning(self, "Validación", "El ID ya existe en conductores.")
+            QMessageBox.warning(self, "Validación", "El código ya existe en conductores.")
             return
         outer_d = self._read_float(self.ed_outer_d, "Diámetro exterior (mm)")
         if outer_d is None:
@@ -98,6 +98,7 @@ class ConductorEditorDialog(QDialog):
         manufacturer = self.ed_manufacturer.text().strip()
         model = self.ed_model.text().strip()
         self._result = {
+            "code": code,
             "id": code,
             "name": name,
             "service": self.cmb_service.currentText().strip(),

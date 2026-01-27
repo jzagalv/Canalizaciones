@@ -23,6 +23,7 @@ from ui.dialogs.editors.conductor_editor_dialog import ConductorEditorDialog
 from ui.dialogs.editors.duct_editor_dialog import DuctEditorDialog
 from ui.dialogs.editors.epc_editor_dialog import EPCEditorDialog
 from ui.dialogs.editors.bpc_editor_dialog import BPCEditorDialog
+from domain.materials.material_ids import normalize_material_library
 
 
 class LibraryEditorWidget(QWidget):
@@ -92,6 +93,7 @@ class LibraryEditorWidget(QWidget):
 
     def set_document(self, doc: Dict[str, Any]) -> None:
         self._doc = doc or {}
+        normalize_material_library(self._doc)
         self._refresh_table()
 
     def document(self) -> Dict[str, Any]:
@@ -106,7 +108,7 @@ class LibraryEditorWidget(QWidget):
     def _columns_for(self, category: str) -> List[Tuple[str, str]]:
         if category == "conductors":
             return [
-                ("id", "ID"),
+                ("code", "Código"),
                 ("name", "Nombre"),
                 ("service", "Servicio"),
                 ("outer_diameter_mm", "Ø ext (mm)"),
@@ -116,7 +118,7 @@ class LibraryEditorWidget(QWidget):
             ]
         if category == "ducts":
             return [
-                ("id", "ID"),
+                ("code", "Código"),
                 ("name", "Nombre"),
                 ("shape", "Forma"),
                 ("nominal", "Nominal"),
@@ -128,7 +130,7 @@ class LibraryEditorWidget(QWidget):
                 ("tags", "Tags"),
             ]
         return [
-            ("id", "ID"),
+            ("code", "Código"),
             ("name", "Nombre"),
             ("shape", "Forma"),
             ("inner_width_mm", "Ancho (mm)"),
@@ -152,6 +154,7 @@ class LibraryEditorWidget(QWidget):
             cont = self._doc.get("containments") or {}
             cont[category] = list(items)
             self._doc["containments"] = cont
+        normalize_material_library(self._doc)
         self._refresh_table()
         self.materials_changed.emit(self._doc)
 
@@ -176,7 +179,7 @@ class LibraryEditorWidget(QWidget):
     def _existing_ids(self, category: str, exclude_id: Optional[str] = None) -> List[str]:
         ids = []
         for it in self._category_items(category):
-            cid = str(it.get("id") or "").strip()
+            cid = str(it.get("code") or it.get("id") or "").strip()
             if not cid:
                 continue
             if exclude_id and cid == exclude_id:
@@ -189,7 +192,7 @@ class LibraryEditorWidget(QWidget):
         return sel[0].row() if sel else -1
 
     def _edit_dialog_for(self, category: str, data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-        existing_ids = self._existing_ids(category, exclude_id=(data or {}).get("id"))
+        existing_ids = self._existing_ids(category, exclude_id=(data or {}).get("code") or (data or {}).get("id"))
         if category == "ducts":
             dlg = DuctEditorDialog(data=data, existing_ids=existing_ids, parent=self)
         elif category == "epc":
@@ -246,9 +249,10 @@ class LibraryEditorWidget(QWidget):
         if row >= len(items):
             return
         src = dict(items[row])
-        src_id = str(src.get("id", "") or "")
+        src_id = str(src.get("code", "") or src.get("id") or "")
         if src_id:
-            src["id"] = f"{src_id}_copia"
+            src["code"] = f"{src_id}_copia"
+            src["id"] = src["code"]
         updated = self._edit_dialog_for(category, data=src)
         if not updated:
             return

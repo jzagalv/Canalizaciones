@@ -44,7 +44,7 @@ class EPCEditorDialog(QDialog):
         self.ed_material = QLineEdit()
         self.ed_tags = QLineEdit()
 
-        form.addRow("ID:", self.ed_id)
+        form.addRow("Código:", self.ed_id)
         form.addRow("Nombre:", self.ed_name)
         form.addRow("Forma:", self.cmb_shape)
         form.addRow("Ancho interno (mm):", self.ed_width)
@@ -63,7 +63,7 @@ class EPCEditorDialog(QDialog):
             self._load_data(data)
 
     def _load_data(self, data: Dict[str, Any]) -> None:
-        self.ed_id.setText(str(data.get("id", "")))
+        self.ed_id.setText(str(data.get("code") or data.get("id") or ""))
         self.ed_name.setText(str(data.get("name", "")))
         self.cmb_shape.setCurrentText(str(data.get("shape", "")))
         self.ed_width.setText(str(data.get("inner_width_mm", "")))
@@ -118,10 +118,10 @@ class EPCEditorDialog(QDialog):
         code = self.ed_id.text().strip()
         name = self.ed_name.text().strip()
         if not code or not name:
-            QMessageBox.warning(self, "Validación", "ID y nombre son obligatorios.")
+            QMessageBox.warning(self, "Validación", "Código y nombre son obligatorios.")
             return
         if code in self._existing_ids:
-            QMessageBox.warning(self, "Validación", "El ID ya existe en EPC.")
+            QMessageBox.warning(self, "Validación", "El código ya existe en EPC.")
             return
 
         width = self._read_float(self.ed_width, "Ancho interno (mm)")
@@ -141,6 +141,7 @@ class EPCEditorDialog(QDialog):
         material = self.ed_material.text().strip()
 
         self._result = {
+            "code": code,
             "id": code,
             "name": name,
             "shape": self.cmb_shape.currentText().strip(),

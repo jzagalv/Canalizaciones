@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
@@ -60,6 +61,7 @@ class MainWindow(QMainWindow):
         self._current_theme = app_config.theme
         self._project_path: Optional[str] = None
         self.project = Project()
+        self._project_dirty = False
 
         # cached effective catalog
         self._eff: Optional[EffectiveCatalog] = None
@@ -69,6 +71,7 @@ class MainWindow(QMainWindow):
         self._lib_tpl_dialog: Optional[LibrariesTemplatesDialog] = None
         self._segment_dialog: Optional[ConduitSegmentDialog] = None
         self._calc_dirty = True
+        self._libs_pending_normalize: Dict[str, Dict] = {}
 
         if self._app_config.materiales_bd_path and Path(self._app_config.materiales_bd_path).exists():
             self.project.active_materiales_bd_path = self._app_config.materiales_bd_path
@@ -244,6 +247,7 @@ class MainWindow(QMainWindow):
         self._project_path = None
         self._eff = None
         self._calc_dirty = True
+        self._project_dirty = True
         self._refresh_all()
 
     def _open_project(self) -> None:
@@ -258,6 +262,7 @@ class MainWindow(QMainWindow):
         try:
             self.project = load_project(path)
             self._project_path = path
+            self._project_dirty = False
             self._app_config.last_project_path = path
             self._app_config.save()
             self._eff = None
@@ -273,6 +278,7 @@ class MainWindow(QMainWindow):
         try:
             save_project(self.project, self._project_path)
             self.statusBar().showMessage("Proyecto guardado", 2000)
+            self._project_dirty = False
             self._refresh_title()
             self._app_config.last_project_path = self._project_path
             self._app_config.save()
@@ -302,17 +308,23 @@ class MainWindow(QMainWindow):
         except LibError as e:
             QMessageBox.critical(self, "Error en biblioteca", str(e))
             return
+        if self._libs_pending_normalize:
+            self._offer_normalize_libs()
         self.tab_circuits.set_effective_catalog(self._eff)
         self._refresh_status()
 
     def _build_effective_catalog(self) -> EffectiveCatalog:
         libs = sorted([lr for lr in self.project.libraries if lr.enabled], key=lambda x: x.priority)
-        loaded: List[Dict] = []
+        loaded: List[Tuple[str, Dict]] = []
         warnings: List[str] = []
+        self._libs_pending_normalize = {}
         for lr in libs:
             res = load_lib(lr.path)
-            loaded.append(res.doc)
+            source_label = str((res.doc.get("meta") or {}).get("name") or Path(lr.path).name)
+            loaded.append((source_label, res.doc))
             warnings += [f"{Path(lr.path).name}: {w}" for w in res.warnings]
+            if res.changed and res.doc.get("kind") == "material_library":
+                self._libs_pending_normalize[str(lr.path)] = res.doc
 
         eff = merge_libs(loaded)
         eff.warnings = warnings + eff.warnings
@@ -362,6 +374,7 @@ class MainWindow(QMainWindow):
     # -------------------- Refresh --------------------
     def _on_project_mutated(self) -> None:
         # mark dirty (lightweight)
+        self._project_dirty = True
         self._eff = None  # libraries/canvas/circuits may have changed
         self._calc_dirty = True
         if self._segment_dialog is not None:
@@ -386,6 +399,10 @@ class MainWindow(QMainWindow):
                 pass
         self._refresh_equipment_library_items()
         self._load_active_materiales()
+        if self._migrate_project_material_refs():
+            self._on_project_mutated()
+            self.tab_canvas.set_project(self.project)
+            self.tab_circuits.set_project(self.project)
         self._sync_libraries_templates_dialog()
         self._refresh_status()
 
@@ -403,7 +420,8 @@ class MainWindow(QMainWindow):
     def _refresh_title(self) -> None:
         name = self.project.name or "Proyecto"
         p = self._project_path or "(sin guardar)"
-        self.lbl_project.setText(f"{name} — {p}")
+        dirty = " *" if self._project_dirty else ""
+        self.lbl_project.setText(f"{name} — {p}{dirty}")
 
     def _refresh_materiales_label(self) -> None:
         path = self._materiales_path or "(no cargado)"
@@ -605,6 +623,73 @@ class MainWindow(QMainWindow):
                 self._segment_dialog.set_material_service(self._material_service)
             except Exception:
                 pass
+
+    def _offer_normalize_libs(self) -> None:
+        libs = list(self._libs_pending_normalize.keys())
+        if not libs:
+            return
+        count = len(libs)
+        msg = f"Se detectaron {count} librería(s) con uid/code faltantes. ¿Deseas normalizarlas y guardar?"
+        res = QMessageBox.question(self, "Normalizar librerías", msg, QMessageBox.Yes | QMessageBox.No)
+        if res != QMessageBox.Yes:
+            return
+        for path, doc in self._libs_pending_normalize.items():
+            try:
+                Path(path).write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception as exc:
+                QMessageBox.warning(self, "Normalizar librerías", f"No se pudo guardar {path}:\n{exc}")
+        self._libs_pending_normalize = {}
+
+    def _migrate_project_material_refs(self) -> bool:
+        if not self._material_service:
+            return False
+        changed = False
+        canvas = self.project.canvas or {}
+        edges = list(canvas.get("edges") or [])
+        for edge in edges:
+            props = edge.get("props") if isinstance(edge.get("props"), dict) else None
+            if not props:
+                continue
+            duct_uid = str(props.get("duct_uid") or "").strip()
+            snap = props.get("duct_snapshot") if isinstance(props.get("duct_snapshot"), dict) else {}
+            snap_uid = str(snap.get("uid") or "").strip()
+            if not duct_uid and snap_uid:
+                props["duct_uid"] = snap_uid
+                duct_uid = snap_uid
+                changed = True
+            legacy = str(props.get("duct_id") or "").strip()
+            if not duct_uid and legacy:
+                resolved = self._material_service.resolve_duct_uid(legacy, props.get("size"))
+                if resolved:
+                    props["duct_uid"] = resolved
+                    props.pop("duct_id", None)
+                    changed = True
+            elif duct_uid and "duct_id" in props:
+                props.pop("duct_id", None)
+                changed = True
+            if duct_uid and not props.get("duct_snapshot"):
+                snapshot = self._material_service.build_duct_snapshot(duct_uid)
+                if snapshot:
+                    props["duct_snapshot"] = snapshot
+                    changed = True
+
+        circuits = list((self.project.circuits or {}).get("items") or [])
+        for cir in circuits:
+            cref = str(cir.get("cable_ref") or "").strip()
+            if not cref:
+                continue
+            resolved = self._material_service.resolve_conductor_uid(cref)
+            if resolved and resolved != cref:
+                cir["cable_ref"] = resolved
+                changed = True
+            if resolved:
+                if not cir.get("cable_snapshot"):
+                    snap = self._material_service.build_conductor_snapshot(resolved)
+                    if snap:
+                        cir["cable_snapshot"] = snap
+                        changed = True
+
+        return changed
 
     def _load_base_template_dialog(self) -> None:
         path, _ = QFileDialog.getOpenFileName(

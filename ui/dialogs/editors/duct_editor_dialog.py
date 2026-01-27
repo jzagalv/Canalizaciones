@@ -44,7 +44,7 @@ class DuctEditorDialog(QDialog):
         self.ed_manufacturer = QLineEdit()
         self.ed_tags = QLineEdit()
 
-        form.addRow("ID:", self.ed_id)
+        form.addRow("Código:", self.ed_id)
         form.addRow("Nombre:", self.ed_name)
         form.addRow("Forma:", self.cmb_shape)
         form.addRow("Nominal:", self.ed_nominal)
@@ -64,7 +64,7 @@ class DuctEditorDialog(QDialog):
             self._load_data(data)
 
     def _load_data(self, data: Dict[str, Any]) -> None:
-        self.ed_id.setText(str(data.get("id", "")))
+        self.ed_id.setText(str(data.get("code") or data.get("id") or ""))
         self.ed_name.setText(str(data.get("name", "")))
         self.cmb_shape.setCurrentText(str(data.get("shape", "")))
         self.ed_nominal.setText(str(data.get("nominal", "")))
@@ -105,10 +105,10 @@ class DuctEditorDialog(QDialog):
         code = self.ed_id.text().strip()
         name = self.ed_name.text().strip()
         if not code or not name:
-            QMessageBox.warning(self, "Validación", "ID y nombre son obligatorios.")
+            QMessageBox.warning(self, "Validación", "Código y nombre son obligatorios.")
             return
         if code in self._existing_ids:
-            QMessageBox.warning(self, "Validación", "El ID ya existe en ductos.")
+            QMessageBox.warning(self, "Validación", "El código ya existe en ductos.")
             return
 
         inner_d = self._read_float(self.ed_inner_d, "Diámetro interno (mm)")
@@ -124,6 +124,7 @@ class DuctEditorDialog(QDialog):
         standard = self.ed_standard.text().strip()
 
         self._result = {
+            "code": code,
             "id": code,
             "name": name,
             "shape": self.cmb_shape.currentText().strip(),

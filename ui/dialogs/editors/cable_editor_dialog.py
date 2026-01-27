@@ -43,7 +43,7 @@ class CableEditorDialog(QDialog):
         self.ed_weight.setValidator(QDoubleValidator(0.0, 100000.0, 3, self))
         self.ed_notes = QLineEdit()
 
-        form.addRow("Código/ID:", self.ed_id)
+        form.addRow("Código:", self.ed_id)
         form.addRow("Nombre:", self.ed_name)
         form.addRow("Tipo:", self.cmb_type)
         form.addRow("Tensión (kV):", self.ed_kv)
@@ -61,7 +61,7 @@ class CableEditorDialog(QDialog):
             self._load_data(data)
 
     def _load_data(self, data: Dict[str, Any]) -> None:
-        self.ed_id.setText(str(data.get("id", "")))
+        self.ed_id.setText(str(data.get("code") or data.get("id") or ""))
         self.ed_name.setText(str(data.get("name", "")))
         self.cmb_type.setCurrentText(str(data.get("type", "")))
         self.ed_kv.setText(str(data.get("kv", "")))
@@ -105,6 +105,7 @@ class CableEditorDialog(QDialog):
         weight = self._read_float(self.ed_weight, "Peso (kg/m)", False)
 
         self._result = {
+            "code": code,
             "id": code,
             "name": name,
             "type": self.cmb_type.currentText().strip(),

@@ -65,14 +65,32 @@ class MaterialesRepo:
                 return dict(item)
         return None
 
-    def get_duct_by_id(self, duct_id: str) -> Optional[Dict[str, Any]]:
-        target = str(duct_id or "").strip().lower()
+    def get_duct_by_uid(self, duct_uid: str) -> Optional[Dict[str, Any]]:
+        target = str(duct_uid or "").strip().lower()
         if not target:
             return None
         for item in self._containments().get("ducts", []):
+            if str(item.get("uid") or "").strip().lower() == target:
+                return dict(item)
+        return None
+
+    def get_duct_by_code(self, duct_code: str) -> Optional[Dict[str, Any]]:
+        target = str(duct_code or "").strip().lower()
+        if not target:
+            return None
+        for item in self._containments().get("ducts", []):
+            if str(item.get("code") or "").strip().lower() == target:
+                return dict(item)
             if str(item.get("id") or "").strip().lower() == target:
                 return dict(item)
         return None
+
+    def get_duct_by_id(self, duct_id: str) -> Optional[Dict[str, Any]]:
+        # Legacy entry point: accept uid, code, or id.
+        item = self.get_duct_by_uid(duct_id)
+        if item:
+            return item
+        return self.get_duct_by_code(duct_id)
 
     def get_tray_by_size(self, size: str) -> Optional[Dict[str, Any]]:
         return self._get_rect_by_size("epc", size)
@@ -89,11 +107,37 @@ class MaterialesRepo:
         if not code_norm:
             return None
         for item in (doc.get("conductors") or []):
+            if str(item.get("uid") or "").lower() == code_norm:
+                return dict(item)
             if str(item.get("id") or "").lower() == code_norm:
                 return dict(item)
             if str(item.get("code") or "").lower() == code_norm:
                 return dict(item)
             if str(item.get("name") or "").lower() == code_norm:
+                return dict(item)
+        return None
+
+    def get_conductor_by_uid(self, conductor_uid: str) -> Optional[Dict[str, Any]]:
+        doc = self._load()
+        target = str(conductor_uid or "").strip().lower()
+        if not target:
+            return None
+        for item in (doc.get("conductors") or []):
+            if str(item.get("uid") or "").strip().lower() == target:
+                return dict(item)
+        return None
+
+    def get_conductor_by_code(self, code: str) -> Optional[Dict[str, Any]]:
+        doc = self._load()
+        target = str(code or "").strip().lower()
+        if not target:
+            return None
+        for item in (doc.get("conductors") or []):
+            if str(item.get("code") or "").strip().lower() == target:
+                return dict(item)
+            if str(item.get("id") or "").strip().lower() == target:
+                return dict(item)
+            if str(item.get("name") or "").strip().lower() == target:
                 return dict(item)
         return None
 

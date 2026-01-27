@@ -9,6 +9,12 @@ class MaterialsRepository(Protocol):
     def get_duct_by_nominal(self, nominal_in: str) -> Optional[Dict[str, Any]]:
         ...
 
+    def get_duct_by_uid(self, duct_uid: str) -> Optional[Dict[str, Any]]:
+        ...
+
+    def get_duct_by_code(self, duct_code: str) -> Optional[Dict[str, Any]]:
+        ...
+
     def get_duct_by_id(self, duct_id: str) -> Optional[Dict[str, Any]]:
         ...
 
@@ -22,6 +28,12 @@ class MaterialsRepository(Protocol):
         ...
 
     def get_cable_by_code(self, code: str) -> Optional[Dict[str, Any]]:
+        ...
+
+    def get_conductor_by_uid(self, conductor_uid: str) -> Optional[Dict[str, Any]]:
+        ...
+
+    def get_conductor_by_code(self, code: str) -> Optional[Dict[str, Any]]:
         ...
 
     def list_conductors(self, service: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -56,6 +68,22 @@ class MaterialService:
         item = None
         try:
             item = self._repo.get_duct_by_id(duct_id)
+        except Exception:
+            item = None
+        return dict(item) if item else {}
+
+    def get_duct_material_by_uid(self, duct_uid: str) -> Dict[str, Any]:
+        item = None
+        try:
+            item = self._repo.get_duct_by_uid(duct_uid)
+        except Exception:
+            item = None
+        return dict(item) if item else {}
+
+    def get_duct_material_by_code(self, duct_code: str) -> Dict[str, Any]:
+        item = None
+        try:
+            item = self._repo.get_duct_by_code(duct_code)
         except Exception:
             item = None
         return dict(item) if item else {}
@@ -164,6 +192,28 @@ class MaterialService:
             "outer_diameter_mm": outer,
             "found": bool(item),
         }
+
+    def get_duct_dimensions_by_uid(self, duct_uid: str) -> Dict[str, float]:
+        item = None
+        try:
+            item = self._repo.get_duct_by_uid(duct_uid)
+        except Exception:
+            item = None
+        inner = _coerce_mm(item.get("inner_diameter_mm") if item else None)
+        outer = _coerce_mm(item.get("outer_diameter_mm") if item else None)
+        if inner <= 0 and item:
+            inner = _fallback_duct_inner_mm(item.get("nominal") or "")
+        if inner <= 0:
+            inner = 50.0
+        if outer <= 0:
+            outer = _estimate_duct_outer_mm(inner)
+        if outer < inner + 1.0:
+            outer = inner + 1.0
+        return {
+            "inner_diameter_mm": inner,
+            "outer_diameter_mm": outer,
+            "found": bool(item),
+        }
     def get_rect_dimensions(self, kind: str, size: str) -> Dict[str, float]:
         kind_norm = str(kind or "").strip().lower()
         item = None
@@ -194,6 +244,79 @@ class MaterialService:
         except Exception:
             item = None
         return max(0.0, _coerce_mm(item.get("outer_diameter_mm") if item else None))
+
+    def get_conductor_by_uid(self, conductor_uid: str) -> Dict[str, Any]:
+        item = None
+        try:
+            item = self._repo.get_conductor_by_uid(conductor_uid)
+        except Exception:
+            item = None
+        return dict(item) if item else {}
+
+    def get_conductor_by_code(self, code: str) -> Dict[str, Any]:
+        item = None
+        try:
+            item = self._repo.get_conductor_by_code(code)
+        except Exception:
+            item = None
+        return dict(item) if item else {}
+
+    def resolve_duct_uid(self, ref: str, label: Optional[str] = None) -> str:
+        ref_norm = str(ref or "").strip()
+        if not ref_norm:
+            return ""
+        item = self.get_duct_material_by_uid(ref_norm)
+        if item:
+            return str(item.get("uid") or "")
+        item = self.get_duct_material_by_code(ref_norm)
+        if item:
+            return str(item.get("uid") or "")
+        if label:
+            label_norm = str(label or "").strip().casefold()
+            for duct in self.list_ducts_by_standard(None):
+                name = str(duct.get("name") or duct.get("nominal") or "").strip().casefold()
+                if name and name == label_norm:
+                    return str(duct.get("uid") or "")
+        return ""
+
+    def resolve_conductor_uid(self, ref: str) -> str:
+        ref_norm = str(ref or "").strip()
+        if not ref_norm:
+            return ""
+        item = self.get_conductor_by_uid(ref_norm)
+        if item:
+            return str(item.get("uid") or "")
+        item = self.get_conductor_by_code(ref_norm)
+        if item:
+            return str(item.get("uid") or "")
+        return ""
+
+    def build_duct_snapshot(self, duct_uid: str) -> Dict[str, Any]:
+        item = self.get_duct_material_by_uid(duct_uid)
+        if not item:
+            return {}
+        return {
+            "uid": str(item.get("uid") or ""),
+            "code": str(item.get("code") or ""),
+            "name": str(item.get("name") or item.get("nominal") or ""),
+            "shape": str(item.get("shape") or ""),
+            "inner_diameter_mm": item.get("inner_diameter_mm"),
+            "max_fill_percent": item.get("max_fill_percent"),
+            "standard": item.get("standard"),
+            "material": item.get("material"),
+        }
+
+    def build_conductor_snapshot(self, conductor_uid: str) -> Dict[str, Any]:
+        item = self.get_conductor_by_uid(conductor_uid)
+        if not item:
+            return {}
+        return {
+            "uid": str(item.get("uid") or ""),
+            "code": str(item.get("code") or ""),
+            "name": str(item.get("name") or ""),
+            "service": item.get("service"),
+            "outer_diameter_mm": item.get("outer_diameter_mm"),
+        }
 
 
 def _coerce_mm(value: Any) -> float:

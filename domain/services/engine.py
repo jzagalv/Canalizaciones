@@ -140,7 +140,9 @@ def compute_project_solutions(
 
     # Accumulate per-edge cable areas by service
     per_edge_services: Dict[str, Dict[str, float]] = {str(e.get('id')): {} for e in edges}
-    conductors = eff.material.get('conductors_by_id', {})
+    warnings: List[str] = []
+    conductors = eff.material.get('conductors_by_uid', {})
+    conductors_by_code = eff.material.get('conductors_by_code', {})
     routes: Dict[str, List[str]] = {}
     edge_to_circuits: Dict[str, List[str]] = {str(e.get('id')): [] for e in edges if e.get('id')}
 
@@ -164,14 +166,21 @@ def compute_project_solutions(
                 edge_to_circuits.setdefault(eid, []).append(cid)
 
         cref = str(c.get('cable_ref') or '')
-        conductor = conductors.get(cref)
-        if not conductor:
-            warnings.append(f"CableRef '{cref}' no existe en bibliotecas (circuito '{c.get('name','')}')")
-            continue
-        od = conductor.get('outer_diameter_mm')
+        snap = c.get("cable_snapshot") if isinstance(c.get("cable_snapshot"), dict) else None
+        od = None
+        if snap:
+            od = snap.get("outer_diameter_mm")
         if od is None:
-            warnings.append(f"CableRef '{cref}' sin outer_diameter_mm")
-            continue
+            conductor = conductors.get(cref)
+            if not conductor and cref:
+                conductor = conductors_by_code.get(str(cref).strip().lower())
+            if not conductor:
+                warnings.append(f"CableRef '{cref}' no existe en bibliotecas (circuito '{c.get('name','')}')")
+                continue
+            od = conductor.get('outer_diameter_mm')
+            if od is None:
+                warnings.append(f"CableRef '{cref}' sin outer_diameter_mm")
+                continue
         area = _cable_area_mm2(float(od))
         qty = int(c.get('qty', 1) or 1)
         service = str(c.get('service') or 'power')
@@ -191,35 +200,47 @@ def _build_edge_fill_results(
     eff: EffectiveCatalog,
 ) -> Dict[str, Dict[str, Any]]:
     fill_results: Dict[str, Dict[str, Any]] = {}
-    ducts = eff.material.get("ducts_by_id") or {}
-    epc = eff.material.get("epc_by_id") or {}
-    bpc = eff.material.get("bpc_by_id") or {}
+    ducts = eff.material.get("ducts_by_uid") or {}
+    ducts_by_code = eff.material.get("ducts_by_code") or {}
+    epc = eff.material.get("epc_by_uid") or {}
+    epc_by_code = eff.material.get("epc_by_code") or {}
+    bpc = eff.material.get("bpc_by_uid") or {}
+    bpc_by_code = eff.material.get("bpc_by_code") or {}
 
-    def find_duct_material(duct_id: str, size_label: str) -> Dict[str, Any]:
-        if duct_id and duct_id in ducts:
-            return dict(ducts.get(duct_id) or {})
+    def find_duct_material(duct_ref: str, size_label: str) -> Dict[str, Any]:
+        if duct_ref and duct_ref in ducts:
+            return dict(ducts.get(duct_ref) or {})
+        if duct_ref:
+            by_code = ducts_by_code.get(str(duct_ref).strip().lower())
+            if by_code:
+                return dict(by_code)
         size_norm = str(size_label or "").strip().casefold()
         if not size_norm:
             return {}
         for item in ducts.values():
             name = str(item.get("name") or "")
             nominal = str(item.get("nominal") or "")
-            did = str(item.get("id") or "")
-            if size_norm in (name.strip().casefold(), nominal.strip().casefold(), did.strip().casefold()):
+            code = str(item.get("code") or "")
+            if size_norm in (name.strip().casefold(), nominal.strip().casefold(), code.strip().casefold()):
                 return dict(item)
         return {}
 
     def find_rect_material(kind: str, size_label: str) -> Dict[str, Any]:
-        items = epc if str(kind or "").strip().lower() == "epc" else bpc
+        kind_norm = str(kind or "").strip().lower()
+        items = epc if kind_norm == "epc" else bpc
+        items_by_code = epc_by_code if kind_norm == "epc" else bpc_by_code
         size_norm = str(size_label or "").strip().casefold()
         if not size_norm:
             return {}
         for item in items.values():
             name = str(item.get("name") or "")
             nominal = str(item.get("nominal") or "")
-            rid = str(item.get("id") or "")
-            if size_norm in (name.strip().casefold(), nominal.strip().casefold(), rid.strip().casefold()):
+            code = str(item.get("code") or "")
+            if size_norm in (name.strip().casefold(), nominal.strip().casefold(), code.strip().casefold()):
                 return dict(item)
+        by_code = items_by_code.get(str(size_label or "").strip().lower())
+        if by_code:
+            return dict(by_code)
         return {}
 
     def scaled_material(material: Dict[str, Any], qty: int, is_duct: bool) -> Dict[str, Any]:
@@ -247,13 +268,14 @@ def _build_edge_fill_results(
         conduit_type = str(props.get("conduit_type") or e.get("containment_kind") or "duct").strip()
         conduit_type_norm = conduit_type.lower()
         size = str(props.get("size") or "")
-        duct_id = str(props.get("duct_id") or "")
+        duct_id = str(props.get("duct_uid") or props.get("duct_id") or "")
+        snapshot = props.get("duct_snapshot") if isinstance(props.get("duct_snapshot"), dict) else None
         qty = int(props.get("quantity") or 1)
         svc_areas = per_edge_services.get(eid, {})
         total_area = sum(float(v) for v in (svc_areas or {}).values())
 
         if conduit_type_norm in ("ducto", "duct"):
-            material = find_duct_material(duct_id, size)
+            material = dict(snapshot) if snapshot else find_duct_material(duct_id, size)
             material = scaled_material(material, qty, is_duct=True)
             max_fill = get_material_max_fill_percent(material, DEFAULT_DUCT_MAX_FILL_PERCENT)
             fill_percent = calc_duct_fill(material, [{"area_mm2": total_area}]) if total_area > 0 else 0.0

@@ -118,6 +118,7 @@ Componentes clave:
 - `ui/widgets/sidebar_nav.py`: navegación lateral
 - `ui/widgets/header_bar.py`: barra superior
 - `ui/widgets/inspector_panel.py`: panel contextual
+- `ui/widgets/action_bar.py`: barra de acciones por vista
 
 ### Cómo agregar una nueva página
 1) Crear el widget de la página (ej. `MyPage(QWidget)`).
@@ -131,3 +132,4 @@ Usa propiedades para consistencia:
 - `primary="true"`, `secondary="true"`, `danger="true"` en botones.
 - `card="true"` en `QFrame` para tarjetas.
 - Contenedores principales: `#SidebarNav`, `#HeaderBar`, `#ActionBar`, `#InspectorPanel`.
+- Roles equivalentes: `QFrame[role="sidebar"]`, `QFrame[role="header"]`, `QFrame[role="actionbar"]`, `QFrame[role="inspector"]`.

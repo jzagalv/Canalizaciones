@@ -1,3 +1,33 @@
+## 0.8.0-alpha - 2026-01-28
+- Added: Presets de reglas de llenado (CRUD) + preset activo por proyecto.
+- Changed: Motor usa reglas desde preset (no desde materiales).
+- Fixed: Editores de materiales ya no exigen max_fill_percent/max_layers.
+
+## 0.7.9-alpha - 2026-01-27
+- Changed: Mejorado resaltado de troncales (mas visible, mas grueso ~ radio GAP, colores por troncal con palette dinamica).
+
+## 0.7.8-alpha - 2026-01-27
+- Fixed: Troncales: acci?n ahora soporta selecci?n m?ltiple y selecci?n de nodos (GAP/c?mara) sin error.
+- Improved: UX para agrupar tramos manualmente incluso con cortes intermedios.
+
+## 0.7.7-alpha - 2026-01-27
+- Fixed: ejecuci?n/entrypoint estable con `python -m app`, VS Code launch config, compatibilidad con rutas antiguas.
+
+## 0.7.6-alpha - 2026-01-27
+- Fixed: BFS troncales no invalida edges por cortes; cortes por GAP/C?mara/Equipo aplicados correctamente; persistencia y refresh visual.
+
+## 0.7.5-alpha - 2026-01-27
+- Fixed: creaci?n de troncales, cortes por GAP/C?mara y refresh visual de overlays.
+
+## 0.7.4-alpha - 2026-01-27
+- Added: cortes de troncal por GAP/C?mara; men? contextual en canvas para troncales y edici?n tags; resaltado visual de troncales; renombrar/eliminar equipos en librer?a con bloqueo si est?n usados.
+
+## 0.7.3-alpha - 2026-01-27
+- Added: Troncales por selecci?n conectada (BFS/DFS), asignar/agregar/quitar tramos.
+
+## 0.7.2-alpha - 2026-01-27
+- Fix: Persistencia de equipos creados por usuario en equipment_library y recarga en Biblioteca.
+
 ## 0.7.1-alpha - 2026-01-27
 - Added: per-conduit cable assignment and drawing in segment section view
 - Added: circuit table shows assigned conduit (T1-A/B/...)

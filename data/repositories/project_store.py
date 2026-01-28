@@ -49,6 +49,8 @@ def load_project(path: str) -> Project:
         },
         circuits=data.get('circuits') or {'source': 'none', 'items': []},
         primary_equipment=data.get('primary_equipment') or [],
+        troncales=data.get('troncales') or [],
+        active_fill_rules_preset_id=data.get('active_fill_rules_preset_id',''),
     )
     return prj
 

@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from PyQt5.QtCore import QObject, pyqtSignal, Qt, QRectF
-from PyQt5.QtGui import QPixmap, QImage, QPainter
-from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem
+from PyQt5.QtGui import QPixmap, QImage, QPainter, QPainterPath, QPainterPathStroker, QColor, QBrush, QPen
+from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem, QGraphicsPathItem
 
 from PyQt5.QtPrintSupport import QPrinter
 
@@ -67,6 +67,7 @@ class CanvasScene(QGraphicsScene):
         self._background_item: Optional[QGraphicsPixmapItem] = None
         self._circuits_by_edge: Optional[Dict[str, List[str]]] = None
         self._fill_results: Dict[str, Dict[str, object]] = {}
+        self._troncal_highlights: Dict[str, QGraphicsPathItem] = {}
 
         self.selectionChanged.connect(self._emit_selection_snapshot)
 
@@ -100,6 +101,7 @@ class CanvasScene(QGraphicsScene):
         self._background_item = None
         self._circuits_by_edge = None
         self._fill_results = {}
+        self._troncal_highlights.clear()
 
         base = {
             "nodes": [],
@@ -208,6 +210,36 @@ class CanvasScene(QGraphicsScene):
 
     def get_project_canvas(self) -> Dict:
         return self._project_canvas
+
+    def get_node_data(self, node_id: str) -> Optional[Dict[str, object]]:
+        node = self._nodes_by_id.get(str(node_id))
+        if not node:
+            return None
+        return {
+            "id": node.data.id,
+            "type": node.data.kind,
+            "name": node.data.name,
+            "x": node.data.x,
+            "y": node.data.y,
+            "library_item_id": node.data.library_item_id,
+        }
+
+    def set_node_name(self, node_id: str, name: str, emit: bool = True) -> None:
+        node = self._nodes_by_id.get(str(node_id))
+        if not node:
+            return
+        node.data.name = str(name or "")
+        node.label.set_text(node.data.name)
+        for n in self._project_canvas.get("nodes", []) or []:
+            if str(n.get("id")) == str(node_id):
+                n["name"] = node.data.name
+                props = n.get("props") if isinstance(n.get("props"), dict) else {}
+                if props:
+                    props["tag"] = node.data.name
+                    n["props"] = props
+                break
+        if emit:
+            self.signals.project_changed.emit(self._project_canvas)
 
     # -------------------- Background image --------------------
     def _apply_background_pixmap(self, pix: QPixmap, emit: bool = True) -> None:
@@ -371,6 +403,7 @@ class CanvasScene(QGraphicsScene):
             if str(e.get("id")) == str(edge_id):
                 e["props"] = dict(props or {})
                 break
+        self._refresh_troncal_highlights()
         if emit:
             self.signals.project_changed.emit(self._project_canvas)
 
@@ -537,11 +570,13 @@ class CanvasScene(QGraphicsScene):
             self.removeItem(edge)
         self._project_canvas["edges"] = [e for e in (self._project_canvas.get("edges", []) or []) if str(e.get("id")) != str(edge_id)]
         self.signals.segment_removed.emit(str(edge_id))
+        self._refresh_troncal_highlights()
 
     def _refresh_edges(self) -> None:
         for edge in self._edges_by_id.values():
             edge.update_geometry()
             self._sync_edge_model_endpoints(edge)
+        self._refresh_troncal_highlights()
 
     def _sync_edge_model_endpoints(self, edge: EdgeItem) -> None:
         for e in self._project_canvas.get("edges", []) or []:
@@ -553,6 +588,52 @@ class CanvasScene(QGraphicsScene):
                 e["from_node"] = from_id
                 e["to_node"] = to_id
                 break
+
+    def _clear_troncal_highlights(self) -> None:
+        for item in self._troncal_highlights.values():
+            try:
+                self.removeItem(item)
+            except Exception:
+                pass
+        self._troncal_highlights.clear()
+
+    def _troncal_color_for_index(self, idx: int) -> QColor:
+        hue = (float(idx) * 0.61803398875) % 1.0
+        color = QColor.fromHsvF(hue, 0.45, 0.95)
+        color.setAlpha(120)
+        return color
+
+    def _troncal_highlight_width(self) -> float:
+        return 36.0
+
+    def _refresh_troncal_highlights(self) -> None:
+        self._clear_troncal_highlights()
+        troncales: Dict[str, List[EdgeItem]] = {}
+        for edge in self._edges_by_id.values():
+            troncal_id = str((edge.props or {}).get("troncal_id") or "").strip()
+            if not troncal_id:
+                continue
+            troncales.setdefault(troncal_id, []).append(edge)
+        if not troncales:
+            return
+        for idx, troncal_id in enumerate(sorted(troncales.keys())):
+            path = QPainterPath()
+            for edge in troncales.get(troncal_id, []):
+                line = edge.line()
+                path.moveTo(line.p1())
+                path.lineTo(line.p2())
+            stroker = QPainterPathStroker()
+            stroker.setWidth(self._troncal_highlight_width())
+            band = stroker.createStroke(path)
+            item = QGraphicsPathItem(band)
+            item.setPen(QPen(Qt.NoPen))
+            item.setBrush(QBrush(self._troncal_color_for_index(idx)))
+            item.setZValue(-10)
+            self.addItem(item)
+            self._troncal_highlights[troncal_id] = item
+
+    def rebuild_troncal_overlays(self) -> None:
+        self._refresh_troncal_highlights()
 
     def _auto_snap_selected_edges(self) -> bool:
         changed = False

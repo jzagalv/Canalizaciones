@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -10,7 +11,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QAction, QActionGroup, QApplication, QFileDialog, QHBoxLayout, QLabel,
     QMainWindow, QMessageBox, QPushButton, QSplitter, QTabWidget, QVBoxLayout,
-    QWidget
+    QWidget, QInputDialog, QDialog
 )
 
 from data.repositories.project_store import load_project, save_project
@@ -20,6 +21,12 @@ from data.repositories.template_repo import (
     TemplateRepoError,
     load_base_template,
     save_base_template,
+)
+from data.repositories.lib_writer import (
+    LibWriteError,
+    delete_equipment_item,
+    normalize_equipment_id,
+    upsert_equipment_item,
 )
 from infra.persistence.app_config import AppConfig
 from infra.persistence.materiales_bd_repo import (
@@ -32,6 +39,15 @@ from domain.entities.models import LibraryRef, Project
 from domain.libraries.template_models import BaseTemplate
 from domain.materials.material_service import MaterialService
 from domain.services.engine import compute_project_solutions
+from domain.services.troncal_service import (
+    add_connected_to_troncal,
+    assign_troncal_to_edges,
+    ensure_troncales,
+    get_connected_edge_ids,
+    get_edge_by_id,
+    next_troncal_id,
+    remove_troncal_from_edges,
+)
 from ui.tabs.canvas_tab import CanvasTab
 from ui.tabs.circuits_tab import CircuitsTab
 from ui.tabs.primary_equipment_tab import PrimaryEquipmentTab
@@ -39,6 +55,7 @@ from ui.tabs.equipment_library_tab import EquipmentLibraryTab
 from ui.tabs.results_tab import ResultsTab
 from ui.dialogs.libraries_templates_dialog import LibrariesTemplatesDialog
 from ui.dialogs.conduit_segment_dialog import ConduitSegmentDialog
+from ui.dialogs.fill_rules_presets_dialog import FillRulesPresetsDialog
 from ui.theme_manager import apply_theme
 
 
@@ -72,6 +89,8 @@ class MainWindow(QMainWindow):
         self._segment_dialog: Optional[ConduitSegmentDialog] = None
         self._calc_dirty = True
         self._libs_pending_normalize: Dict[str, Dict] = {}
+        self._equipment_items_by_id: Dict[str, Dict] = {}
+        self._equipment_item_sources: Dict[str, str] = {}
 
         if self._app_config.materiales_bd_path and Path(self._app_config.materiales_bd_path).exists():
             self.project.active_materiales_bd_path = self._app_config.materiales_bd_path
@@ -146,6 +165,24 @@ class MainWindow(QMainWindow):
         else:
             self.act_theme_light.setChecked(True)
 
+        m_cfg = self.menuBar().addMenu("Configuración")
+        act_fill_presets = QAction("Presets de reglas de llenado...", self)
+        act_fill_presets.triggered.connect(self._open_fill_rules_presets_dialog)
+        m_cfg.addAction(act_fill_presets)
+
+        m_troncales = self.menuBar().addMenu("Troncales")
+        act_troncal_assign = QAction("Crear/Asignar Troncal (conectada) desde tramo seleccionado", self)
+        act_troncal_assign.triggered.connect(self._troncal_create_or_assign_from_selected)
+        m_troncales.addAction(act_troncal_assign)
+
+        act_troncal_add_connected = QAction("Agregar conectados a Troncal", self)
+        act_troncal_add_connected.triggered.connect(self._troncal_add_connected_from_selected)
+        m_troncales.addAction(act_troncal_add_connected)
+
+        act_troncal_remove = QAction("Quitar tramo(s) de troncal", self)
+        act_troncal_remove.triggered.connect(self._troncal_remove_from_selected)
+        m_troncales.addAction(act_troncal_remove)
+
     # -------------------- UI --------------------
     def _build_ui(self) -> None:
         cw = QWidget(self)
@@ -207,6 +244,14 @@ class MainWindow(QMainWindow):
         self.tab_canvas.project_changed.connect(self.tab_circuits.reload_node_lists)
         self.tab_canvas.segment_double_clicked.connect(self.open_segment_dialog)
         self.tab_canvas.segment_removed.connect(self._on_segment_removed)
+        self.tab_canvas.equipment_add_requested.connect(self._on_equipment_add_requested)
+        self.tab_canvas.troncal_create_requested.connect(self._troncal_create_or_assign_from_selected)
+        self.tab_canvas.troncal_add_requested.connect(self._troncal_add_connected_from_selected)
+        self.tab_canvas.troncal_remove_requested.connect(self._troncal_remove_from_selected)
+        self.tab_canvas.edit_edge_tag_requested.connect(self._edit_edge_tag_from_menu)
+        self.tab_canvas.edit_node_tag_requested.connect(self._edit_node_tag_from_menu)
+        self.tab_canvas.library_panel.equipmentRequestedRename.connect(self._on_equipment_rename_requested)
+        self.tab_canvas.library_panel.equipmentRequestedDelete.connect(self._on_equipment_delete_requested)
 
     def open_segment_dialog(self, segment_item) -> None:
         try:
@@ -344,6 +389,7 @@ class MainWindow(QMainWindow):
         routes, edge_to_circuits, canalizacion_assignments, fill_results = compute_project_solutions(
             self.project,
             self._eff,
+            self._app_dir,
         )
         self.project._calc = {
             "routes": routes,
@@ -473,6 +519,15 @@ class MainWindow(QMainWindow):
         self._lib_tpl_dialog.show()
         self._lib_tpl_dialog.raise_()
         self._lib_tpl_dialog.activateWindow()
+
+    def _open_fill_rules_presets_dialog(self) -> None:
+        dlg = FillRulesPresetsDialog(self._app_dir, self.project, self)
+        if dlg.exec_() == QDialog.Accepted:
+            self._on_project_mutated()
+            try:
+                self._recalculate()
+            except Exception:
+                pass
 
     def _sync_libraries_templates_dialog(self) -> None:
         if not self._lib_tpl_dialog:
@@ -756,6 +811,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_equipment_library_items(self) -> None:
         items_by_id: Dict[str, Dict] = {}
+        item_sources: Dict[str, str] = {}
         libs = sorted([lr for lr in self.project.libraries if lr.enabled], key=lambda x: x.priority)
         for lr in libs:
             try:
@@ -768,10 +824,436 @@ class MainWindow(QMainWindow):
                 equip_id = it.get("id")
                 if not equip_id:
                     continue
-                items_by_id[str(equip_id)] = it
+                equip_id = str(equip_id)
+                items_by_id[equip_id] = it
+                item_sources.setdefault(equip_id, str(lr.path))
+        self._equipment_items_by_id = items_by_id
+        self._equipment_item_sources = item_sources
         self.tab_canvas.set_equipment_items(items_by_id)
         self.tab_equipment_lib.set_equipment_items(items_by_id)
         self.tab_canvas.refresh_library_used_markers()
+
+    def _troncal_create_or_assign_from_selected(self) -> None:
+        edge_ids = list(self.tab_canvas.get_selected_edge_ids() or [])
+        payload = self.tab_canvas.get_selection_snapshot()
+        if not edge_ids and payload.get("kind") == "node":
+            node_id = str(payload.get("id") or "")
+            adj = self._get_adjacent_edge_ids(node_id)
+            if not adj:
+                QMessageBox.warning(self, "Troncales", "El nodo no tiene tramos adyacentes.")
+                return
+            if len(adj) == 1:
+                edge_ids = [adj[0]]
+            else:
+                selection, ok = QInputDialog.getItem(
+                    self,
+                    "Troncales",
+                    "Selecciona tramo adyacente:",
+                    adj,
+                    0,
+                    False,
+                )
+                if not ok or not selection:
+                    return
+                edge_ids = [selection]
+
+        if not edge_ids:
+            QMessageBox.warning(self, "Troncales", "Selecciona tramo(s) completos o un nodo.")
+            return
+
+        mode = "connected"
+        base_edge_id = str(edge_ids[0])
+        connected: List[str] = []
+        if len(edge_ids) > 1:
+            opts = [
+                f"Usar selecci\u00f3n ({len(edge_ids)} tramos) [recomendado]",
+                "Usar conectados desde 1 tramo (elige 1)",
+            ]
+            choice, ok = QInputDialog.getItem(self, "Troncales", "Modo de asignaci\u00f3n:", opts, 0, False)
+            if not ok or not choice:
+                return
+            if choice.startswith("Usar selecci"):
+                mode = "selection"
+                connected = edge_ids
+                base_edge_id = str(edge_ids[0])
+            else:
+                selection, ok = QInputDialog.getItem(
+                    self,
+                    "Troncales",
+                    "Selecciona tramo base:",
+                    edge_ids,
+                    0,
+                    False,
+                )
+                if not ok or not selection:
+                    return
+                base_edge_id = str(selection)
+        if not connected:
+            connected = get_connected_edge_ids(self.project, base_edge_id)
+        self._logger.info("Troncales: mode=%s base edge id=%s", mode, base_edge_id)
+        self._logger.info("Troncales: connected edges=%s sample=%s", len(connected), connected[:15])
+        base_edge = self._edge_by_id(base_edge_id) or {}
+        a = str(base_edge.get("from_node") or base_edge.get("from") or "")
+        b = str(base_edge.get("to_node") or base_edge.get("to") or "")
+        node_by_id = {str(n.get("id") or ""): n for n in ((self.project.canvas or {}).get("nodes") or []) if n.get("id")}
+        def _is_cut(node: Optional[Dict[str, object]]) -> bool:
+            if not node:
+                return False
+            node_type = str(node.get("type") or "")
+            if node_type in ("equipment", "chamber"):
+                return True
+            if node_type == "junction" and str(node.get("name") or "").strip().upper() == "GAP":
+                return True
+            props = node.get("props") if isinstance(node.get("props"), dict) else {}
+            return bool(props.get("is_cut_node"))
+        self._logger.info(
+            "Troncales: base endpoints a=%s cut=%s b=%s cut=%s",
+            a,
+            _is_cut(node_by_id.get(a)),
+            b,
+            _is_cut(node_by_id.get(b)),
+        )
+        before_troncales = list(ensure_troncales(self.project))
+        troncales = ensure_troncales(self.project)
+        choices = [str(t.get("id") or "") for t in troncales if t.get("id")]
+        choice_items = ["(Nueva troncal)"] + choices
+        selection, ok = QInputDialog.getItem(
+            self,
+            "Troncales",
+            "Crear nueva troncal o asignar a existente:",
+            choice_items,
+            0,
+            False,
+        )
+        if not ok or not selection:
+            return
+        if selection == "(Nueva troncal)":
+            troncal_id = next_troncal_id(self.project)
+            troncales.append({"id": troncal_id, "name": troncal_id})
+        else:
+            troncal_id = selection
+        self._logger.info("Troncales: troncal_id selected=%s", troncal_id)
+        assign_troncal_to_edges(self.project, connected, troncal_id)
+        updated = 0
+        for eid in connected:
+            edge = self._edge_by_id(eid)
+            if edge:
+                props = edge.get("props") if isinstance(edge.get("props"), dict) else {}
+                if props.get("troncal_id") == troncal_id:
+                    updated += 1
+                self.tab_canvas.scene.set_edge_props(eid, props or {}, emit=False)
+        after_troncales = list(self.project.troncales or [])
+        self._logger.info("Troncales: updated edges=%s", updated)
+        self._logger.info(
+            "Troncales: troncales before=%s after=%s",
+            [t.get("id") for t in (before_troncales or [])],
+            [t.get("id") for t in (after_troncales or [])],
+        )
+        try:
+            self.tab_canvas.scene.rebuild_troncal_overlays()
+            self._logger.info("Troncales: rebuild_troncal_overlays called")
+        except Exception as exc:
+            self._logger.warning("Troncales: rebuild_troncal_overlays failed: %s", exc)
+        self._on_project_mutated()
+        self._logger.info("Troncales: _on_project_mutated called")
+
+    def _troncal_add_connected_from_selected(self) -> None:
+        edge_ids = list(self.tab_canvas.get_selected_edge_ids() or [])
+        payload = self.tab_canvas.get_selection_snapshot()
+        if not edge_ids and payload.get("kind") == "node":
+            node_id = str(payload.get("id") or "")
+            adj = self._get_adjacent_edge_ids(node_id)
+            if not adj:
+                QMessageBox.warning(self, "Troncales", "El nodo no tiene tramos adyacentes.")
+                return
+            if len(adj) == 1:
+                edge_ids = [adj[0]]
+            else:
+                selection, ok = QInputDialog.getItem(
+                    self,
+                    "Troncales",
+                    "Selecciona tramo adyacente:",
+                    adj,
+                    0,
+                    False,
+                )
+                if not ok or not selection:
+                    return
+                edge_ids = [selection]
+
+        if not edge_ids:
+            QMessageBox.warning(self, "Troncales", "Selecciona tramo(s) completos o un nodo.")
+            return
+
+        mode = "connected"
+        base_edge_id = str(edge_ids[0])
+        if len(edge_ids) > 1:
+            opts = [
+                f"Usar selecci\u00f3n ({len(edge_ids)} tramos) [recomendado]",
+                "Usar conectados desde 1 tramo (elige 1)",
+            ]
+            choice, ok = QInputDialog.getItem(self, "Troncales", "Modo de asignaci\u00f3n:", opts, 0, False)
+            if not ok or not choice:
+                return
+            if choice.startswith("Usar selecci"):
+                QMessageBox.warning(self, "Troncales", "Esta acción requiere un tramo base. Selecciona 1 tramo.")
+                return
+            selection, ok = QInputDialog.getItem(
+                self,
+                "Troncales",
+                "Selecciona tramo base:",
+                edge_ids,
+                0,
+                False,
+            )
+            if not ok or not selection:
+                return
+            base_edge_id = str(selection)
+        self._logger.info("Troncales(add): mode=%s base edge id=%s", mode, base_edge_id)
+        edge = self._edge_by_id(base_edge_id)
+        props = edge.get("props") if edge else {}
+        troncal_id = str((props or {}).get("troncal_id") or "")
+        if not troncal_id:
+            troncales = ensure_troncales(self.project)
+            choices = [str(t.get("id") or "") for t in troncales if t.get("id")]
+            if not choices:
+                QMessageBox.warning(self, "Troncales", "No hay troncales disponibles para asignar.")
+                return
+            selection, ok = QInputDialog.getItem(
+                self,
+                "Troncales",
+                "Selecciona troncal destino:",
+                choices,
+                0,
+                False,
+            )
+            if not ok or not selection:
+                return
+            troncal_id = selection
+        assignable, conflicts = add_connected_to_troncal(self.project, base_edge_id, troncal_id)
+        self._logger.info(
+            "Troncales(add): troncal_id=%s assignable=%s conflicts=%s",
+            troncal_id,
+            len(assignable),
+            len(conflicts),
+        )
+        if conflicts:
+            QMessageBox.warning(
+                self,
+                "Troncales",
+                "Hay tramos conectados con otra troncal. Operación bloqueada.",
+            )
+            return
+        assign_troncal_to_edges(self.project, assignable, troncal_id)
+        for eid in assignable:
+            edge = self._edge_by_id(eid)
+            if edge:
+                self.tab_canvas.scene.set_edge_props(eid, edge.get("props") or {}, emit=False)
+        try:
+            self.tab_canvas.scene.rebuild_troncal_overlays()
+            self._logger.info("Troncales(add): rebuild_troncal_overlays called")
+        except Exception as exc:
+            self._logger.warning("Troncales(add): rebuild_troncal_overlays failed: %s", exc)
+        self._on_project_mutated()
+        self._logger.info("Troncales(add): _on_project_mutated called")
+
+    def _troncal_remove_from_selected(self) -> None:
+        edge_ids = self.tab_canvas.get_selected_edge_ids()
+        payload = self.tab_canvas.get_selection_snapshot()
+        if not edge_ids and payload.get("kind") == "node":
+            node_id = str(payload.get("id") or "")
+            adj = self._get_adjacent_edge_ids(node_id)
+            if not adj:
+                QMessageBox.warning(self, "Troncales", "El nodo no tiene tramos adyacentes.")
+                return
+            if len(adj) == 1:
+                edge_ids = [adj[0]]
+            else:
+                selection, ok = QInputDialog.getItem(
+                    self,
+                    "Troncales",
+                    "Selecciona tramo adyacente:",
+                    adj,
+                    0,
+                    False,
+                )
+                if not ok or not selection:
+                    return
+                edge_ids = [selection]
+        if not edge_ids:
+            QMessageBox.warning(self, "Troncales", "Selecciona tramo(s) completos o un nodo.")
+            return
+        self._logger.info("Troncales(remove): edges=%s sample=%s", len(edge_ids), edge_ids[:10])
+        remove_troncal_from_edges(self.project, edge_ids)
+        for eid in edge_ids:
+            edge = self._edge_by_id(eid)
+            if edge:
+                self.tab_canvas.scene.set_edge_props(eid, edge.get("props") or {}, emit=False)
+        try:
+            self.tab_canvas.scene.rebuild_troncal_overlays()
+            self._logger.info("Troncales(remove): rebuild_troncal_overlays called")
+        except Exception as exc:
+            self._logger.warning("Troncales(remove): rebuild_troncal_overlays failed: %s", exc)
+        self._on_project_mutated()
+        self._logger.info("Troncales(remove): _on_project_mutated called")
+
+    def _get_adjacent_edge_ids(self, node_id: str) -> List[str]:
+        edges = list((self.project.canvas or {}).get("edges") or [])
+        nid = str(node_id or "")
+        result = []
+        for e in edges:
+            a = str(e.get("from_node") or e.get("from") or "")
+            b = str(e.get("to_node") or e.get("to") or "")
+            if nid and (a == nid or b == nid):
+                eid = str(e.get("id") or "")
+                if eid:
+                    result.append(eid)
+        return result
+
+    def _edge_by_id(self, edge_id: str) -> Optional[Dict[str, object]]:
+        edges = list((self.project.canvas or {}).get("edges") or [])
+        for e in edges:
+            if str(e.get("id") or "") == str(edge_id):
+                return e
+        return None
+
+    def _edit_edge_tag_from_menu(self, edge_id: str) -> None:
+        edge = self._edge_by_id(edge_id)
+        if not edge:
+            return
+        props = edge.get("props") if isinstance(edge.get("props"), dict) else {}
+        current = str(props.get("tag") or "")
+        value, ok = QInputDialog.getText(self, "Editar TAG tramo", "TAG:", text=current)
+        if not ok:
+            return
+        props["tag"] = str(value or "").strip()
+        edge["props"] = props
+        self.tab_canvas.scene.set_edge_props(edge_id, props, emit=False)
+        self._on_project_mutated()
+
+    def _edit_node_tag_from_menu(self, node_id: str) -> None:
+        node = self.tab_canvas.scene.get_node_data(node_id)
+        if not node:
+            return
+        current = str(node.get("name") or "")
+        value, ok = QInputDialog.getText(self, "Editar TAG equipo", "TAG:", text=current)
+        if not ok:
+            return
+        self.tab_canvas.scene.set_node_name(node_id, str(value or "").strip(), emit=False)
+        self._on_project_mutated()
+
+    def _equipment_lib_path_for_id(self, item_id: str) -> Optional[str]:
+        return self._equipment_item_sources.get(str(item_id))
+
+    def _on_equipment_rename_requested(self, item_id: str, current_name: str) -> None:
+        item_id = str(item_id or "")
+        if not item_id:
+            return
+        item = self._equipment_items_by_id.get(item_id) or {}
+        name, ok = QInputDialog.getText(
+            self,
+            "Renombrar equipo",
+            "Nombre:",
+            text=str(current_name or item.get("name") or item_id),
+        )
+        if not ok or not str(name or "").strip():
+            return
+        lib_path = self._equipment_lib_path_for_id(item_id) or self._ensure_equipment_library()
+        payload = {
+            "id": item_id,
+            "name": str(name).strip(),
+            "category": item.get("category") or "Usuario",
+            "equipment_type": item.get("equipment_type"),
+            "template_ref": item.get("template_ref"),
+        }
+        try:
+            upsert_equipment_item(lib_path, payload)
+        except LibWriteError as exc:
+            QMessageBox.warning(self, "Equipos", f"No se pudo renombrar:\n{exc}")
+            return
+        self._refresh_equipment_library_items()
+
+    def _on_equipment_delete_requested(self, item_id: str, item_name: str) -> None:
+        item_id = str(item_id or "")
+        if not item_id:
+            return
+        used = self.tab_canvas.get_used_equipment_ids()
+        if item_id in used:
+            QMessageBox.warning(self, "Equipos", "No se puede eliminar: el equipo está en uso.")
+            return
+        lib_path = self._equipment_lib_path_for_id(item_id)
+        if not lib_path:
+            QMessageBox.warning(self, "Equipos", "No se encontró la librería del equipo.")
+            return
+        resp = QMessageBox.question(
+            self,
+            "Eliminar equipo",
+            f"¿Eliminar '{item_name}' de la librería?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if resp != QMessageBox.Yes:
+            return
+        try:
+            delete_equipment_item(lib_path, item_id)
+        except LibWriteError as exc:
+            QMessageBox.warning(self, "Equipos", f"No se pudo eliminar:\n{exc}")
+            return
+        self._refresh_equipment_library_items()
+
+    def _find_writable_equipment_library(self) -> Optional[str]:
+        libs = sorted([lr for lr in self.project.libraries if lr.enabled], key=lambda x: x.priority)
+        for lr in libs:
+            try:
+                res = load_lib(lr.path)
+            except Exception:
+                continue
+            if res.doc.get("kind") != "equipment_library":
+                continue
+            if Path(lr.path).exists() and os.access(str(lr.path), os.W_OK):
+                return str(lr.path)
+        return None
+
+    def _ensure_equipment_library(self) -> str:
+        existing = self._find_writable_equipment_library()
+        if existing:
+            return existing
+        base_dir = Path(self._project_path).parent if self._project_path else self._app_dir
+        lib_dir = base_dir / "libs"
+        lib_dir.mkdir(parents=True, exist_ok=True)
+        lib_path = lib_dir / "equipment_user.lib"
+        if not lib_path.exists():
+            doc = {
+                "schema_version": "1.0",
+                "kind": "equipment_library",
+                "meta": {"name": "Equipos Usuario"},
+                "items": [],
+            }
+            from data.repositories.lib_writer import write_json_atomic
+            write_json_atomic(str(lib_path), doc)
+        self.project.libraries.append(LibraryRef(path=str(lib_path), enabled=True, priority=1))
+        self._on_project_mutated()
+        return str(lib_path)
+
+    def _on_equipment_add_requested(self, name: str, kind: str) -> None:
+        equip_name = str(name or "").strip()
+        if not equip_name:
+            return
+        equip_type = "Equipo" if str(kind) == "equipment" else "Armario"
+        equip_id = normalize_equipment_id(equip_name)
+        item = {
+            "id": equip_id,
+            "name": equip_name,
+            "category": "Usuario",
+            "equipment_type": equip_type,
+            "template_ref": None,
+        }
+        lib_path = self._ensure_equipment_library()
+        try:
+            upsert_equipment_item(lib_path, item)
+        except LibWriteError as exc:
+            QMessageBox.warning(self, "Equipos", f"No se pudo guardar el equipo:\n{exc}")
+            return
+        self._refresh_equipment_library_items()
 
     def _project_dialog_dir(self) -> str:
         last_path = self._app_config.last_project_path

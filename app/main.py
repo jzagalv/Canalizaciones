@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
-
-if __name__ == "__main__" and __package__ is None:
-    repo_root = Path(__file__).resolve().parent.parent
-    cmd = [sys.executable, "-m", "app.main"]
-    raise SystemExit(subprocess.call(cmd, cwd=str(repo_root)))
 
 from PyQt5.QtWidgets import QApplication
 
@@ -30,5 +24,5 @@ def main() -> int:
     return app.exec_()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

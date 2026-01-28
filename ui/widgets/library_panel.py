@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import json
-import uuid
 from typing import Any, Dict, Iterable, List, Optional, Set
 
-from PyQt5.QtCore import Qt, QMimeData, QPoint
+from PyQt5.QtCore import Qt, QMimeData, QPoint, pyqtSignal
 from PyQt5.QtGui import QDrag, QFontMetrics, QPainter, QPixmap, QColor, QPen, QBrush
 from PyQt5.QtWidgets import (
     QComboBox,
@@ -16,6 +15,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QMenu,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -87,6 +87,10 @@ class LibraryTree(QTreeWidget):
 class LibraryPanel(QWidget):
     """Left Biblioteca panel with search + draggable items."""
 
+    equipmentRequestedAdd = pyqtSignal(str, str)
+    equipmentRequestedRename = pyqtSignal(str, str)
+    equipmentRequestedDelete = pyqtSignal(str, str)
+
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._equipment_items_by_id: Dict[str, Dict[str, Any]] = {}
@@ -108,6 +112,8 @@ class LibraryPanel(QWidget):
         root.addWidget(self.search)
 
         self.tree = LibraryTree()
+        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._open_context_menu)
         root.addWidget(self.tree, 1)
 
         self._reload()
@@ -216,6 +222,27 @@ class LibraryPanel(QWidget):
                 return top
         return None
 
+    def _open_context_menu(self, pos) -> None:
+        item = self.tree.itemAt(pos)
+        if not item:
+            return
+        payload = item.data(0, Qt.UserRole) or {}
+        if payload.get("kind") != "equipment":
+            return
+        library_id = str(payload.get("library_id") or "")
+        if not library_id:
+            return
+        base_label = str(item.data(0, Qt.UserRole + 2) or item.text(0)).replace(" (usado)", "")
+
+        menu = QMenu(self)
+        act_rename = menu.addAction("Renombrar en librer\u00eda")
+        act_delete = menu.addAction("Eliminar de librer\u00eda")
+        action = menu.exec_(self.tree.viewport().mapToGlobal(pos))
+        if action == act_rename:
+            self.equipmentRequestedRename.emit(library_id, base_label)
+        elif action == act_delete:
+            self.equipmentRequestedDelete.emit(library_id, base_label)
+
     def _apply_used_state(self) -> None:
         for library_id, item in self._library_items_by_id.items():
             state = "used" if library_id in self._used_library_ids else "available"
@@ -247,39 +274,7 @@ class LibraryPanel(QWidget):
         name, kind = dlg.get_values()
         if not name:
             return
-
-        parent = self._find_section_item("Equipos")
-        if parent is None:
-            parent = QTreeWidgetItem(["Equipos"])
-            parent.setFlags(parent.flags() & ~Qt.ItemIsDragEnabled)
-            self.tree.addTopLevelItem(parent)
-
-        needle = name.strip().lower()
-        for i in range(parent.childCount()):
-            if parent.child(i).text(0).strip().lower() == needle:
-                QMessageBox.warning(self, "Equipos", f"Ya existe un equipo llamado '{name}'.")
-                return
-
-        payload: Dict[str, Any] = {
-            "kind": "equipment",
-            "type": kind,
-            "label": name,
-            "library_id": f"user:{uuid.uuid4().hex}",
-            "state": "available",
-        }
-
-        child = QTreeWidgetItem([name])
-        child.setData(0, Qt.UserRole, payload)
-        child.setData(0, Qt.UserRole + 1, f"{name} {kind} equipment")
-        child.setData(0, Qt.UserRole + 2, name)
-        child.setFlags(child.flags() | Qt.ItemIsDragEnabled)
-        parent.addChild(child)
-        parent.setExpanded(True)
-        self._library_items_by_id[payload["library_id"]] = child
-
-        self._apply_filter(self.search.text())
-        self.tree.setCurrentItem(child)
-        self.tree.scrollToItem(child)
+        self.equipmentRequestedAdd.emit(name, kind)
 
 
 class AddEquipmentDialog(QDialog):

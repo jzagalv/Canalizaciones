@@ -38,6 +38,8 @@ class Project:
     })
     circuits: Dict = field(default_factory=lambda: {'source': 'none', 'items': []})
     primary_equipment: List[Dict] = field(default_factory=list)
+    troncales: List[Dict] = field(default_factory=list)
+    active_fill_rules_preset_id: str = ""
 
 
 

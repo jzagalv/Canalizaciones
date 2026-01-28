@@ -93,8 +93,13 @@ class DuctEditorDialog(QDialog):
         return val
 
     def _read_fill(self, widget: QLineEdit) -> Optional[float]:
-        val = self._read_float(widget, "% Ocupación")
-        if val is None:
+        text = widget.text().strip()
+        if not text:
+            return None
+        try:
+            val = float(text)
+        except Exception:
+            QMessageBox.warning(self, "Validación", "% Ocupación debe ser numérico.")
             return None
         if val <= 0 or val > 100:
             QMessageBox.warning(self, "Validación", "% Ocupación debe ser > 0 y <= 100.")
@@ -115,8 +120,6 @@ class DuctEditorDialog(QDialog):
         if inner_d is None:
             return
         max_fill = self._read_fill(self.ed_max_fill)
-        if max_fill is None:
-            return
 
         tags = [t.strip() for t in self.ed_tags.text().split(",") if t.strip()]
         manufacturer = self.ed_manufacturer.text().strip()

@@ -5,15 +5,20 @@ import math
 from typing import Any, Dict, List, Optional, Tuple
 
 from data.repositories.lib_merge import EffectiveCatalog
+from data.repositories.fill_rules_presets_store import ensure_default_presets
 from domain.calculations.formatting import round2, util_color
 from domain.calculations.occupancy import (
-    DEFAULT_DUCT_MAX_FILL_PERCENT,
-    DEFAULT_TRAY_MAX_FILL_PERCENT,
     calc_duct_fill,
     calc_tray_fill,
-    get_material_max_fill_percent,
 )
 from domain.entities.models import Project
+from domain.rules.fill_rules import (
+    count_conductors_for_edge,
+    get_fill_limit_pct,
+    get_layers_rule,
+    get_preset_rules,
+    required_layers,
+)
 
 
 def _cable_area_mm2(outer_diameter_mm: float) -> float:
@@ -44,6 +49,7 @@ def resolve_node_id(ref: str, node_by_id: Dict[str, Dict[str, Any]]) -> Optional
 def compute_project_solutions(
     project: Project,
     eff: EffectiveCatalog,
+    app_dir,
 ) -> Tuple[
     Dict[str, List[str]],
     Dict[str, List[str]],
@@ -224,7 +230,9 @@ def compute_project_solutions(
             })
         canalizacion_assignments[eid] = buckets
 
-    fill_results = _build_edge_fill_results(edges, per_edge_services, eff)
+    presets_doc = ensure_default_presets(app_dir)
+    rules = get_preset_rules(presets_doc, project.active_fill_rules_preset_id)
+    fill_results = _build_edge_fill_results(edges, per_edge_services, eff, rules, circuits, edge_to_circuits)
 
     return routes, edge_to_circuits, canalizacion_assignments, fill_results
 
@@ -233,6 +241,9 @@ def _build_edge_fill_results(
     edges: List[Dict[str, Any]],
     per_edge_services: Dict[str, Dict[str, float]],
     eff: EffectiveCatalog,
+    rules: Dict[str, Any],
+    circuits: List[Dict[str, Any]],
+    edge_to_circuits: Dict[str, List[str]],
 ) -> Dict[str, Dict[str, Any]]:
     fill_results: Dict[str, Dict[str, Any]] = {}
     ducts = eff.material.get("ducts_by_uid") or {}
@@ -241,6 +252,52 @@ def _build_edge_fill_results(
     epc_by_code = eff.material.get("epc_by_code") or {}
     bpc = eff.material.get("bpc_by_uid") or {}
     bpc_by_code = eff.material.get("bpc_by_code") or {}
+
+    def _width_used_for_edge(eid: str) -> float:
+        total = 0.0
+        cid_list = list(edge_to_circuits.get(str(eid), []) or [])
+        if not cid_list:
+            return 0.0
+        by_id = {str(c.get("id") or ""): c for c in circuits if c.get("id")}
+        conductors = eff.material.get("conductors_by_uid", {}) or {}
+        conductors_by_code = eff.material.get("conductors_by_code", {}) or {}
+        for cid in cid_list:
+            c = by_id.get(str(cid))
+            if not c:
+                continue
+            snap = c.get("cable_snapshot") if isinstance(c.get("cable_snapshot"), dict) else None
+            od = None
+            if snap:
+                od = snap.get("outer_diameter_mm")
+            if od is None:
+                cref = str(c.get("cable_ref") or "")
+                conductor = conductors.get(cref)
+                if not conductor and cref:
+                    conductor = conductors_by_code.get(str(cref).strip().lower())
+                if conductor:
+                    od = conductor.get("outer_diameter_mm")
+            try:
+                diameter = float(od or 0.0)
+            except Exception:
+                diameter = 0.0
+            try:
+                qty_c = int(c.get("qty", 1) or 1)
+            except Exception:
+                qty_c = 1
+            total += max(0.0, diameter) * max(1, qty_c)
+        return total
+
+    def _check_layers_ok(kind: str, material: Dict[str, Any], eid: str) -> bool:
+        enabled, max_layers = get_layers_rule(kind, rules)
+        if not enabled:
+            return True
+        try:
+            width_clear = float(material.get("inner_width_mm") or 0.0)
+        except Exception:
+            width_clear = 0.0
+        width_used = _width_used_for_edge(eid)
+        layers_req = required_layers(width_used, width_clear)
+        return layers_req <= max_layers
 
     def find_duct_material(duct_ref: str, size_label: str) -> Dict[str, Any]:
         if duct_ref and duct_ref in ducts:
@@ -309,24 +366,32 @@ def _build_edge_fill_results(
         svc_areas = per_edge_services.get(eid, {})
         total_area = sum(float(v) for v in (svc_areas or {}).values())
 
+        conductor_count = count_conductors_for_edge(eid, edge_to_circuits, circuits)
         if conduit_type_norm in ("ducto", "duct"):
             material = dict(snapshot) if snapshot else find_duct_material(duct_id, size)
             material = scaled_material(material, qty, is_duct=True)
-            max_fill = get_material_max_fill_percent(material, DEFAULT_DUCT_MAX_FILL_PERCENT)
+            max_fill = get_fill_limit_pct("duct", conductor_count, rules)
             fill_percent = calc_duct_fill(material, [{"area_mm2": total_area}]) if total_area > 0 else 0.0
+            layers_ok = True
         elif conduit_type_norm == "epc":
             material = find_rect_material("epc", size)
             material = scaled_material(material, qty, is_duct=False)
-            max_fill = get_material_max_fill_percent(material, DEFAULT_TRAY_MAX_FILL_PERCENT)
+            max_fill = get_fill_limit_pct("epc", conductor_count, rules)
             fill_percent = calc_tray_fill(material, [{"area_mm2": total_area}], has_separator=False) if total_area > 0 else 0.0
+            layers_ok = _check_layers_ok("epc", material, eid)
         else:
             material = find_rect_material("bpc", size)
             material = scaled_material(material, qty, is_duct=False)
-            max_fill = get_material_max_fill_percent(material, DEFAULT_TRAY_MAX_FILL_PERCENT)
+            max_fill = get_fill_limit_pct("bpc", conductor_count, rules)
             fill_percent = calc_tray_fill(material, [{"area_mm2": total_area}], has_separator=False) if total_area > 0 else 0.0
+            layers_ok = _check_layers_ok("bpc", material, eid)
 
         fill_over = bool(max_fill > 0 and fill_percent > max_fill + 1e-6)
-        status = "No cumple" if fill_over else "OK"
+        if not layers_ok:
+            status = "No cumple (capas)"
+            fill_over = True
+        else:
+            status = "No cumple" if fill_over else "OK"
         fill_results[eid] = {
             "fill_percent": round2(fill_percent),
             "fill_max_percent": round2(max_fill),

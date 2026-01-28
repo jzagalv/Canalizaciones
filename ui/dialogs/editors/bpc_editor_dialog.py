@@ -91,8 +91,13 @@ class BPCEditorDialog(QDialog):
         return val
 
     def _read_fill(self, widget: QLineEdit) -> Optional[float]:
-        val = self._read_float(widget, "% Ocupación")
-        if val is None:
+        text = widget.text().strip()
+        if not text:
+            return None
+        try:
+            val = float(text)
+        except Exception:
+            QMessageBox.warning(self, "Validación", "% Ocupación debe ser numérico.")
             return None
         if val <= 0 or val > 100:
             QMessageBox.warning(self, "Validación", "% Ocupación debe ser > 0 y <= 100.")
@@ -102,7 +107,6 @@ class BPCEditorDialog(QDialog):
     def _read_layers(self, widget: QLineEdit) -> Optional[int]:
         text = widget.text().strip()
         if not text:
-            QMessageBox.warning(self, "Validación", "Máx. capas es obligatorio.")
             return None
         try:
             val = int(text)
@@ -131,11 +135,7 @@ class BPCEditorDialog(QDialog):
         if height is None:
             return
         max_fill = self._read_fill(self.ed_max_fill)
-        if max_fill is None:
-            return
         max_layers = self._read_layers(self.ed_max_layers)
-        if max_layers is None:
-            return
 
         tags = [t.strip() for t in self.ed_tags.text().split(",") if t.strip()]
         material = self.ed_material.text().strip()

@@ -5,18 +5,26 @@ import json
 
 from PyQt5.QtCore import Qt, pyqtSignal, QRect
 from PyQt5.QtGui import QPainter
-from PyQt5.QtWidgets import QGraphicsView
+from PyQt5.QtWidgets import QGraphicsView, QMenu
+
+from ui.canvas.canvas_items import EdgeItem, NodeItem
 
 
 class CanvasView(QGraphicsView):
     """QGraphicsView wrapper with zoom and drag&drop support."""
 
     view_state_changed = pyqtSignal(dict)
+    troncal_create_requested = pyqtSignal()
+    troncal_add_requested = pyqtSignal()
+    troncal_remove_requested = pyqtSignal()
+    edit_edge_tag_requested = pyqtSignal(str)
+    edit_node_tag_requested = pyqtSignal(str)
 
     def __init__(self, scene):
         super().__init__(scene)
         self.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing)
         self.setDragMode(QGraphicsView.RubberBandDrag)
+        self.setRubberBandSelectionMode(Qt.ContainsItemShape)
         self.setAcceptDrops(True)
         self.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
@@ -124,6 +132,52 @@ class CanvasView(QGraphicsView):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._emit_view_state()
+
+    def contextMenuEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item and item.parentItem():
+            parent = item.parentItem()
+            if isinstance(parent, EdgeItem):
+                item = parent
+            elif isinstance(parent, NodeItem):
+                item = parent
+        if isinstance(item, EdgeItem):
+            scene = self.scene()
+            if scene:
+                scene.clearSelection()
+            item.setSelected(True)
+            menu = QMenu(self)
+            act_assign = menu.addAction("Crear/Asignar troncal conectada")
+            act_add = menu.addAction("Agregar conectados a troncal")
+            act_remove = menu.addAction("Quitar de troncal")
+            menu.addSeparator()
+            act_tag = menu.addAction("Editar TAG tramo")
+            action = menu.exec_(event.globalPos())
+            if action == act_assign:
+                self.troncal_create_requested.emit()
+            elif action == act_add:
+                self.troncal_add_requested.emit()
+            elif action == act_remove:
+                self.troncal_remove_requested.emit()
+            elif action == act_tag:
+                self.edit_edge_tag_requested.emit(str(item.edge_id))
+            event.accept()
+            return
+
+        if isinstance(item, NodeItem):
+            scene = self.scene()
+            if scene:
+                scene.clearSelection()
+            item.setSelected(True)
+            menu = QMenu(self)
+            act_edit = menu.addAction("Editar TAG equipo")
+            action = menu.exec_(event.globalPos())
+            if action == act_edit:
+                self.edit_node_tag_requested.emit(str(item.node_id))
+            event.accept()
+            return
+
+        super().contextMenuEvent(event)
 
     def set_view_state(self, state: dict) -> None:
         scale = float(state.get("scale", 1.0) or 1.0)

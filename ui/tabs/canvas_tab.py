@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (
 from domain.calculations.formatting import fmt_percent, util_color
 from domain.entities.models import Project
 from ui.canvas.canvas_scene import CanvasScene
+from ui.canvas.canvas_items import EdgeItem
 from ui.canvas.canvas_view import CanvasView
 from ui.widgets.library_panel import LibraryPanel
 
@@ -29,6 +30,12 @@ class CanvasTab(QWidget):
     selection_changed = pyqtSignal(dict)  # snapshot
     segment_double_clicked = pyqtSignal(object)
     segment_removed = pyqtSignal(str)
+    equipment_add_requested = pyqtSignal(str, str)
+    troncal_create_requested = pyqtSignal()
+    troncal_add_requested = pyqtSignal()
+    troncal_remove_requested = pyqtSignal()
+    edit_edge_tag_requested = pyqtSignal(str)
+    edit_node_tag_requested = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -103,10 +110,16 @@ class CanvasTab(QWidget):
         root.addWidget(splitter, 1)
 
         self.library_panel = LibraryPanel()
+        self.library_panel.equipmentRequestedAdd.connect(self.equipment_add_requested)
         splitter.addWidget(self.library_panel)
 
         self.view = CanvasView(self.scene)
         self.view.view_state_changed.connect(self._on_view_state_changed)
+        self.view.troncal_create_requested.connect(self.troncal_create_requested)
+        self.view.troncal_add_requested.connect(self.troncal_add_requested)
+        self.view.troncal_remove_requested.connect(self.troncal_remove_requested)
+        self.view.edit_edge_tag_requested.connect(self.edit_edge_tag_requested)
+        self.view.edit_node_tag_requested.connect(self.edit_node_tag_requested)
         splitter.addWidget(self.view)
 
         self.detail_panel = QWidget()
@@ -171,6 +184,13 @@ class CanvasTab(QWidget):
             if n.get("library_item_id")
         }
 
+    def get_selected_edge_ids(self) -> list[str]:
+        return [
+            it.edge_id
+            for it in (self.scene.selectedItems() or [])
+            if isinstance(it, EdgeItem)
+        ]
+
     def _on_library_item_used(self, library_id: str) -> None:
         self.library_panel.set_library_item_state_by_id(library_id, "used")
 
@@ -180,6 +200,9 @@ class CanvasTab(QWidget):
     def _on_selection_changed(self, payload: Dict) -> None:
         self._selection_snapshot = dict(payload or {})
         self._refresh_detail_panel()
+
+    def get_selection_snapshot(self) -> Dict:
+        return dict(self._selection_snapshot or {})
 
     def _refresh_detail_panel(self) -> None:
         payload = self._selection_snapshot or {}

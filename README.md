@@ -1,19 +1,27 @@
-﻿# Canalizaciones
+# Canalizaciones
 
-Software para diseño y cálculo de canalizaciones BT con Canvas (PyQt5).
+Software para diseno y calculo de canalizaciones BT con Canvas (PyQt5).
 
-## Ejecutar
+## Como ejecutar
 
-Desde la carpeta raíz del proyecto (donde está este README):
+Desde la carpeta raiz del proyecto (donde esta este README):
 
 ```bash
 pip install -r requirements.txt
-python app/main.py
+python -m app
+# Alternativa:
+python -m app.main
 ```
 
-## Flujo rápido
+Nota: no se recomienda usar "Run Python File" sobre archivos internos (por ejemplo `data/app/main.py`).
 
-1. Abre un proyecto (o usa `example_project.proj.json`)
+python -m app
+# Alternativa:
+python -m app.main
+```
+
+Nota: no se recomienda usar "Run Python File" sobre archivos internos (por ejemplo `data/app/main.py`).
+
 2. Revisa la pestaña **Librerías** y asegúrate de tener cargadas:
    - `libs/materiales_bd.lib`
    - `libs/plantillas_bd.lib`

@@ -11,6 +11,11 @@
       "path": "C:/Users/jorge/OneDrive/Documentos/Python/Canalizaciones/libs/materiales_bd.lib",
       "enabled": true,
       "priority": 10
+    },
+    {
+      "path": "C:\\Users\\jorge\\OneDrive\\Documentos\\Python\\Canalizaciones\\libs\\equipment_user.lib",
+      "enabled": true,
+      "priority": 1
     }
   ],
   "canvas": {
@@ -34,18 +39,210 @@
       {
         "id": "N1",
         "type": "equipment",
-        "name": "LCC-H1",
-        "x": 4058.6296624245265,
-        "y": 3099.1279832564715,
-        "library_item_id": "user:83c222e057a7480bbdd57689078108b9"
+        "name": "LCC-HT1",
+        "x": 3931.6674011897076,
+        "y": 3100.1686575288886,
+        "library_item_id": "lcc_ht1"
       },
       {
         "id": "N2",
         "type": "equipment",
-        "name": "LCC-HT1",
-        "x": 3939.9927953690403,
-        "y": 3098.087308984055,
-        "library_item_id": "user:85ee74ff14f3496eae1348cda58238f5"
+        "name": "LCC-H1",
+        "x": 4060.7110109693594,
+        "y": 3100.1686575288873,
+        "library_item_id": "lcc_h1"
+      },
+      {
+        "id": "N5",
+        "type": "junction",
+        "name": "GAP",
+        "x": 3257.8668731102953,
+        "y": 3235.8707726916964,
+        "library_item_id": null
+      },
+      {
+        "id": "N6",
+        "type": "equipment",
+        "name": "LCC-H2",
+        "x": 4182.961152816898,
+        "y": 3106.2865572013297,
+        "library_item_id": "lcc_h2"
+      },
+      {
+        "id": "N7",
+        "type": "equipment",
+        "name": "LCC-HS",
+        "x": 4438.470497149546,
+        "y": 3103.8760916887577,
+        "library_item_id": "lcc_hs"
+      },
+      {
+        "id": "N8",
+        "type": "equipment",
+        "name": "LCC-Hr",
+        "x": 4309.10884797484,
+        "y": 3099.055160663613,
+        "library_item_id": "lcc_hr"
+      },
+      {
+        "id": "N9",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4180.550687304323,
+        "y": 3238.0586718886075,
+        "library_item_id": null
+      },
+      {
+        "id": "N10",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4309.324529199025,
+        "y": 3239.0778416169856,
+        "library_item_id": null
+      },
+      {
+        "id": "N11",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4441.6844511663085,
+        "y": 3238.0586718886084,
+        "library_item_id": null
+      },
+      {
+        "id": "N12",
+        "type": "junction",
+        "name": "GAP",
+        "x": 3246.551704815755,
+        "y": 4535.340827925631,
+        "library_item_id": null
+      },
+      {
+        "id": "N13",
+        "type": "equipment",
+        "name": "MK-T1",
+        "x": 3579.9697864163195,
+        "y": 4535.34082792563,
+        "library_item_id": "mk_t1"
+      },
+      {
+        "id": "N14",
+        "type": "equipment",
+        "name": "CTRL-T1",
+        "x": 3575.695195626569,
+        "y": 4152.76495224293,
+        "library_item_id": "ctrl_t1"
+      },
+      {
+        "id": "N15",
+        "type": "equipment",
+        "name": "TSA-1",
+        "x": 3391.8877916672805,
+        "y": 5283.394216132021,
+        "library_item_id": "tsa_1"
+      },
+      {
+        "id": "N16",
+        "type": "junction",
+        "name": "GAP",
+        "x": 3392.177063502517,
+        "y": 5138.058129280493,
+        "library_item_id": null
+      },
+      {
+        "id": "N17",
+        "type": "junction",
+        "name": "GAP",
+        "x": 3252.9635910003794,
+        "y": 5135.920833885618,
+        "library_item_id": null
+      },
+      {
+        "id": "N18",
+        "type": "equipment",
+        "name": "MT-H01",
+        "x": 3952.9223940670854,
+        "y": 5342.959515038292,
+        "library_item_id": "mt_h01"
+      },
+      {
+        "id": "N19",
+        "type": "equipment",
+        "name": "MT-H02",
+        "x": 3870.177139184266,
+        "y": 5342.820913271318,
+        "library_item_id": "mt_h02"
+      },
+      {
+        "id": "N20",
+        "type": "equipment",
+        "name": "MT-H03",
+        "x": 4014.5539797810347,
+        "y": 5343.883526818111,
+        "library_item_id": "mt_h03"
+      },
+      {
+        "id": "N21",
+        "type": "equipment",
+        "name": "MT-H04",
+        "x": 4078.310792588567,
+        "y": 5348.1339810052805,
+        "library_item_id": "mt_h04"
+      },
+      {
+        "id": "N22",
+        "type": "equipment",
+        "name": "MT-H05",
+        "x": 4139.942378302517,
+        "y": 5343.883526818112,
+        "library_item_id": "mt_h05"
+      },
+      {
+        "id": "N23",
+        "type": "equipment",
+        "name": "MT-H06",
+        "x": 4206.887031750428,
+        "y": 5342.820913271319,
+        "library_item_id": "mt_h06"
+      },
+      {
+        "id": "N24",
+        "type": "equipment",
+        "name": "MT-H07",
+        "x": 3802.0312704225903,
+        "y": 5344.668936830958,
+        "library_item_id": "mt_h07"
+      },
+      {
+        "id": "N25",
+        "type": "junction",
+        "name": "GAP",
+        "x": 3799.9060433290047,
+        "y": 5137.736498740419,
+        "library_item_id": null
+      },
+      {
+        "id": "N26",
+        "type": "junction",
+        "name": "GAP",
+        "x": 4998.002817337242,
+        "y": 3245.6468173221797,
+        "library_item_id": null
+      },
+      {
+        "id": "N27",
+        "type": "junction",
+        "name": "GAP",
+        "x": 5001.721964751014,
+        "y": 2601.277962547372,
+        "library_item_id": null
+      },
+      {
+        "id": "N28",
+        "type": "junction",
+        "name": "GAP",
+        "x": 5134.548658100042,
+        "y": 2602.340576094164,
+        "library_item_id": null
       }
     ],
     "edges": [
@@ -59,35 +256,428 @@
         "mode": "manual",
         "runs": [
           {
-            "catalog_id": "duct_pvc_20_mm",
-            "qty": 1
+            "catalog_id": "DUCT_PVC_90_MM_SCHEDULE_40_PVC",
+            "qty": 2
           }
         ],
         "props": {
           "tag": "T2",
           "conduit_type": "Ducto",
-          "size": "PVC DN 20 mm (ID 15.6mm)",
+          "size": "PVC 90 mm",
           "duct_standard": "Schedule 40 (PVC)",
-          "quantity": 1,
+          "quantity": 2,
           "columns": 1,
           "cables": [],
           "duct_spacing_mm": 25.0,
           "duct_spacing_custom": false,
-          "fill_percent": 0.0,
-          "fill_max_percent": 40.0,
+          "fill_percent": 12.44,
+          "fill_max_percent": 33.0,
           "fill_over": false,
           "fill_state": "ok",
-          "duct_uid": "81facc08-5066-49d1-b84e-ee4d10384001",
+          "duct_uid": "63eca297-a787-4abe-a0c0-2203a18709d0",
           "duct_snapshot": {
-            "uid": "81facc08-5066-49d1-b84e-ee4d10384001",
-            "code": "DUCT_PVC_20_MM_SCHEDULE_40_PVC",
-            "name": "PVC 20 mm",
+            "uid": "63eca297-a787-4abe-a0c0-2203a18709d0",
+            "code": "DUCT_PVC_90_MM_SCHEDULE_40_PVC",
+            "name": "PVC 90 mm",
             "shape": "circular",
-            "inner_diameter_mm": 15.6,
+            "inner_diameter_mm": 77.7,
             "max_fill_percent": 40,
             "standard": "Schedule 40 (PVC)",
             "material": "PVC"
+          },
+          "troncal_id": "TR-001",
+          "conduit_service_by_tag": {
+            "T2-A": "Libre",
+            "T2-B": "Libre"
+          },
+          "circuit_assignment": {
+            "C1": "T2-A",
+            "C2": "T2-A",
+            "C3": "T2-A"
+          },
+          "assignment_signature": "{'conduit_type': 'Ducto', 'size': 'PVC 90 mm', 'circuits': [('C1', 'power', 1, 24.0), ('C2', 'power', 1, 21.28), ('C3', 'power', 1, 13.24)], 'prefs': [('T2-A', 'Libre'), ('T2-B', 'Libre')]}"
+        }
+      },
+      {
+        "id": "E1",
+        "from": "N5",
+        "to": "N3",
+        "from_node": "N5",
+        "to_node": "N3",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [
+          {
+            "catalog_id": "DUCT_PVC_63_MM_SCHEDULE_40_PVC",
+            "qty": 1
           }
+        ],
+        "props": {
+          "troncal_id": "TR-001",
+          "cables": [],
+          "duct_standard": "Schedule 40 (PVC)",
+          "duct_uid": "9b6c6524-1526-4eb9-8926-23a202ac5615",
+          "duct_snapshot": {
+            "uid": "9b6c6524-1526-4eb9-8926-23a202ac5615",
+            "code": "DUCT_PVC_63_MM_SCHEDULE_40_PVC",
+            "name": "PVC 63 mm",
+            "shape": "circular",
+            "inner_diameter_mm": 52.4,
+            "max_fill_percent": 40,
+            "standard": "Schedule 40 (PVC)",
+            "material": "PVC"
+          },
+          "conduit_service_by_tag": {
+            "CanalizaciÃ³n A": "Libre"
+          },
+          "circuit_assignment": {},
+          "assignment_signature": "{'conduit_type': 'Ducto', 'size': 'PVC 63 mm', 'circuits': [], 'prefs': [('CanalizaciÃ³n A', 'Libre')]}",
+          "tag": "",
+          "conduit_type": "Ducto",
+          "size": "PVC 63 mm",
+          "quantity": 1,
+          "columns": 1,
+          "fill_percent": 0.0,
+          "fill_max_percent": 33.0,
+          "fill_over": false,
+          "fill_state": "ok",
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false
+        }
+      },
+      {
+        "id": "E3",
+        "from": "N1",
+        "to": "N3",
+        "from_node": "N1",
+        "to_node": "N3",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [
+          {
+            "catalog_id": "DUCT_PVC_75_MM_SCHEDULE_40_PVC",
+            "qty": 2
+          }
+        ],
+        "props": {
+          "tag": "",
+          "conduit_type": "Ducto",
+          "size": "PVC 75 mm",
+          "duct_standard": "Schedule 40 (PVC)",
+          "duct_uid": "e38e413f-309e-4685-9e43-7a93a16700d8",
+          "duct_snapshot": {
+            "uid": "e38e413f-309e-4685-9e43-7a93a16700d8",
+            "code": "DUCT_PVC_75_MM_SCHEDULE_40_PVC",
+            "name": "PVC 75 mm",
+            "shape": "circular",
+            "inner_diameter_mm": 62.4,
+            "max_fill_percent": 40,
+            "standard": "Schedule 40 (PVC)",
+            "material": "PVC"
+          },
+          "quantity": 2,
+          "columns": 1,
+          "cables": [],
+          "conduit_service_by_tag": {
+            "CanalizaciÃ³n A": "Libre",
+            "CanalizaciÃ³n B": "Libre"
+          },
+          "circuit_assignment": {
+            "C1": "CanalizaciÃ³n A",
+            "C2": "CanalizaciÃ³n A",
+            "C3": "CanalizaciÃ³n A"
+          },
+          "assignment_signature": "{'conduit_type': 'Ducto', 'size': 'PVC 75 mm', 'circuits': [('C1', 'power', 1, 24.0), ('C2', 'power', 1, 21.28), ('C3', 'power', 1, 13.24)], 'prefs': [('CanalizaciÃ³n A', 'Libre'), ('CanalizaciÃ³n B', 'Libre')]}",
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false,
+          "fill_percent": 0.0,
+          "fill_max_percent": 33.0,
+          "fill_over": false,
+          "fill_state": "ok"
+        }
+      },
+      {
+        "id": "E4",
+        "from": "N2",
+        "to": "N4",
+        "from_node": "N2",
+        "to_node": "N4",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E5",
+        "from": "N4",
+        "to": "N9",
+        "from_node": "N4",
+        "to_node": "N9",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E6",
+        "from": "N6",
+        "to": "N9",
+        "from_node": "N6",
+        "to_node": "N9",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E7",
+        "from": "N8",
+        "to": "N10",
+        "from_node": "N8",
+        "to_node": "N10",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E8",
+        "from": "N9",
+        "to": "N10",
+        "from_node": "N9",
+        "to_node": "N10",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E9",
+        "from": "N10",
+        "to": "N11",
+        "from_node": "N10",
+        "to_node": "N11",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E10",
+        "from": "N7",
+        "to": "N11",
+        "from_node": "N7",
+        "to_node": "N11",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E11",
+        "from": "N12",
+        "to": "N13",
+        "from_node": "N12",
+        "to_node": "N13",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E12",
+        "from": "N14",
+        "to": "N13",
+        "from_node": "N14",
+        "to_node": "N13",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E13",
+        "from": "N12",
+        "to": "N5",
+        "from_node": "N12",
+        "to_node": "N5",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E14",
+        "from": "N12",
+        "to": "N17",
+        "from_node": "N12",
+        "to_node": "N17",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E15",
+        "from": "N17",
+        "to": "N16",
+        "from_node": "N17",
+        "to_node": "N16",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E16",
+        "from": "N16",
+        "to": "N15",
+        "from_node": "N16",
+        "to_node": "N15",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E17",
+        "from": "N23",
+        "to": "N22",
+        "from_node": "N23",
+        "to_node": "N22",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E18",
+        "from": "N22",
+        "to": "N21",
+        "from_node": "N22",
+        "to_node": "N21",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E19",
+        "from": "N21",
+        "to": "N20",
+        "from_node": "N21",
+        "to_node": "N20",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E20",
+        "from": "N20",
+        "to": "N18",
+        "from_node": "N20",
+        "to_node": "N18",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E21",
+        "from": "N18",
+        "to": "N19",
+        "from_node": "N18",
+        "to_node": "N19",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E22",
+        "from": "N19",
+        "to": "N24",
+        "from_node": "N19",
+        "to_node": "N24",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E23",
+        "from": "N25",
+        "to": "N24",
+        "from_node": "N25",
+        "to_node": "N24",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E24",
+        "from": "N16",
+        "to": "N25",
+        "from_node": "N16",
+        "to_node": "N25",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {}
+      },
+      {
+        "id": "E25",
+        "from": "N26",
+        "to": "N27",
+        "from_node": "N26",
+        "to_node": "N27",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-002"
+        }
+      },
+      {
+        "id": "E26",
+        "from": "N11",
+        "to": "N26",
+        "from_node": "N11",
+        "to_node": "N26",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-001"
+        }
+      },
+      {
+        "id": "E27",
+        "from": "N27",
+        "to": "N28",
+        "from_node": "N27",
+        "to_node": "N28",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "troncal_id": "TR-002"
         }
       }
     ],
@@ -104,10 +694,10 @@
       "image_format": "png"
     },
     "view": {
-      "scale": 0.9609154627008356,
+      "scale": 1.08223728510856,
       "center": [
-        4141.88360421785,
-        3244.822381394788
+        4200.557551058673,
+        3142.5640631655406
       ]
     }
   },
@@ -167,5 +757,16 @@
       }
     ]
   },
-  "primary_equipment": []
+  "primary_equipment": [],
+  "troncales": [
+    {
+      "id": "TR-001",
+      "name": "TR-001"
+    },
+    {
+      "id": "TR-002",
+      "name": "TR-002"
+    }
+  ],
+  "active_fill_rules_preset_id": ""
 }

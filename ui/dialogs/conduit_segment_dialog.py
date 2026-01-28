@@ -33,15 +33,18 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
 )
 
+from data.repositories.fill_rules_presets_store import ensure_default_presets
 from domain.calculations.occupancy import (
-    DEFAULT_DUCT_MAX_FILL_PERCENT,
-    DEFAULT_TRAY_MAX_FILL_PERCENT,
     calc_duct_fill,
     calc_tray_fill,
-    get_material_max_fill_percent,
 )
 from domain.calculations.formatting import fmt_percent, round2, util_color
 from domain.materials.material_service import MaterialService
+from domain.rules.fill_rules import (
+    count_conductors_for_edge,
+    get_fill_limit_pct,
+    get_preset_rules,
+)
 from domain.services.cable_layout import (
     assign_circuits_to_conduits,
     expand_cable_items,
@@ -90,6 +93,7 @@ class ConduitSegmentDialog(QDialog):
         self._loading_segment = False
         self._preview_dirty = False
         self._project = None
+        self._app_dir = getattr(parent, "_app_dir", None)
         self._assignment_cache = None
         self._assignment_signature_value = ""
         self._assignment_dirty = False
@@ -1687,6 +1691,28 @@ class ConduitSegmentDialog(QDialog):
             cables.append({"outer_diameter_mm": diameter, "qty": qty})
         return cables
 
+    def _count_conductors_from_cables(self, cables: List[Dict[str, object]]) -> int:
+        total = 0
+        for c in cables:
+            try:
+                qty = int(c.get("qty", 1) or 1)
+            except Exception:
+                qty = 1
+            total += max(1, qty)
+        return total
+
+    def _get_fill_rules(self) -> Dict[str, object]:
+        if not self._app_dir:
+            return {}
+        try:
+            doc = ensure_default_presets(self._app_dir)
+            preset_id = ""
+            if self._project is not None:
+                preset_id = str(getattr(self._project, "active_fill_rules_preset_id", "") or "")
+            return get_preset_rules(doc, preset_id)
+        except Exception:
+            return {}
+
     def _compute_fill_percent(self) -> Tuple[float, float]:
         if self._is_segment_alive(self._segment):
             props = self._segment_props(self._segment)
@@ -1713,16 +1739,26 @@ class ConduitSegmentDialog(QDialog):
         cables = self._edge_cables_from_calc() or self._segment_cables()
         expanded = self._expand_cables(cables)
         cable_groups = self._split_cables(n, expanded)
+        rules = self._get_fill_rules()
+        conductor_count = 0
+        calc = self._calc_context()
+        edge_to_circuits = calc.get("edge_to_circuits") if isinstance(calc, dict) else None
+        edge_id = self._segment.edge_id if self._is_segment_alive(self._segment) else None
+        if edge_id and self._project is not None and isinstance(edge_to_circuits, dict):
+            circuits = list((getattr(self._project, "circuits", {}) or {}).get("items") or [])
+            conductor_count = count_conductors_for_edge(edge_id, edge_to_circuits, circuits)
+        if conductor_count <= 0:
+            conductor_count = self._count_conductors_from_cables(cables)
 
         if conduit_type == "Ducto":
             duct_id = self._current_duct_uid()
             size_label = self._current_duct_label() or size
             material = self._duct_material(size_label, duct_id)
-            max_fill = get_material_max_fill_percent(material, DEFAULT_DUCT_MAX_FILL_PERCENT)
+            max_fill = get_fill_limit_pct("duct", conductor_count, rules)
             fills = [calc_duct_fill(material, cables) for cables in cable_groups]
         else:
             material = self._rect_material(conduit_type, size)
-            max_fill = get_material_max_fill_percent(material, DEFAULT_TRAY_MAX_FILL_PERCENT)
+            max_fill = get_fill_limit_pct(conduit_type, conductor_count, rules)
             fills = [calc_tray_fill(material, cables, has_separator=False) for cables in cable_groups]
 
         fill_percent = max(fills) if fills else 0.0

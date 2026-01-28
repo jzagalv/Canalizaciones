@@ -54,6 +54,9 @@ class FillRulesPresetsDialog(BaseDialog):
         root.addLayout(btns)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        close_btn = buttons.button(QDialogButtonBox.Close)
+        if close_btn is not None:
+            close_btn.setProperty("secondary", True)
         buttons.rejected.connect(self.reject)
         buttons.accepted.connect(self.accept)
         self.footer_layout.addWidget(buttons)

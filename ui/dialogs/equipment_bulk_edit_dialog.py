@@ -60,6 +60,10 @@ class EquipmentBulkEditDialog(BaseDialog):
         save_btn = buttons.button(QDialogButtonBox.Save)
         if save_btn is not None:
             save_btn.setText("Guardar")
+            save_btn.setProperty("primary", True)
+        cancel_btn = buttons.button(QDialogButtonBox.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setProperty("secondary", True)
         buttons.accepted.connect(self._on_save)
         buttons.rejected.connect(self.reject)
         self.footer_layout.addWidget(buttons)

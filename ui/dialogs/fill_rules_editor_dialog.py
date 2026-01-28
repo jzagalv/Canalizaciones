@@ -54,6 +54,12 @@ class FillRulesEditorDialog(BaseDialog):
         root.addWidget(self._epc["group"])
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        ok_btn = buttons.button(QDialogButtonBox.Ok)
+        if ok_btn is not None:
+            ok_btn.setProperty("primary", True)
+        cancel_btn = buttons.button(QDialogButtonBox.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setProperty("secondary", True)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         self.footer_layout.addWidget(buttons)

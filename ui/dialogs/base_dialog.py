@@ -16,6 +16,7 @@ class BaseDialog(QDialog):
 
         self.header = QFrame(self)
         self.header.setObjectName("DialogHeader")
+        self.header.setProperty("card", True)
         header_layout = QVBoxLayout(self.header)
         header_layout.setContentsMargins(12, 10, 12, 10)
         header_layout.setSpacing(4)
@@ -30,6 +31,7 @@ class BaseDialog(QDialog):
 
         self.body = QFrame(self)
         self.body.setProperty("card", True)
+        self.body.setObjectName("DialogBody")
         self.body_layout = QVBoxLayout(self.body)
         self.body_layout.setContentsMargins(12, 12, 12, 12)
         self.body_layout.setSpacing(8)

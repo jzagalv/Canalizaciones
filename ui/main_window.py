@@ -214,7 +214,9 @@ class MainWindow(QMainWindow):
         self.shell.header.btn_recalc.clicked.connect(self._recalculate)
 
         self.lbl_project = self.shell.header.lbl_project
+        self.lbl_project.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.lbl_materiales = self.shell.header.lbl_libs
+        self.lbl_materiales.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.lbl_status = self.shell.header.lbl_status
 
         # wiring

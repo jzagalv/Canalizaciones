@@ -23,6 +23,7 @@ from ui.canvas.canvas_scene import CanvasScene
 from ui.canvas.canvas_items import EdgeItem
 from ui.canvas.canvas_view import CanvasView
 from ui.widgets.library_panel import LibraryPanel
+from ui.widgets.card_frame import CardFrame
 
 
 class CanvasTab(QWidget):
@@ -117,7 +118,11 @@ class CanvasTab(QWidget):
 
         self.library_panel = LibraryPanel()
         self.library_panel.equipmentRequestedAdd.connect(self.equipment_add_requested)
-        splitter.addWidget(self.library_panel)
+        self.library_container = CardFrame()
+        lib_layout = QVBoxLayout(self.library_container)
+        lib_layout.setContentsMargins(8, 8, 8, 8)
+        lib_layout.addWidget(self.library_panel)
+        splitter.addWidget(self.library_container)
 
         self.view = CanvasView(self.scene)
         self.view.view_state_changed.connect(self._on_view_state_changed)

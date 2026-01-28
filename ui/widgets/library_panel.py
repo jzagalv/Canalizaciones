@@ -90,6 +90,7 @@ class LibraryPanel(QWidget):
     equipmentRequestedAdd = pyqtSignal(str, str)
     equipmentRequestedRename = pyqtSignal(str, str)
     equipmentRequestedDelete = pyqtSignal(str, str)
+    equipmentRequestedBulkEdit = pyqtSignal()
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -226,6 +227,13 @@ class LibraryPanel(QWidget):
         item = self.tree.itemAt(pos)
         if not item:
             return
+        if item.parent() is None and item.text(0) == "Equipos":
+            menu = QMenu(self)
+            act_bulk = menu.addAction("Editar equipos/armarios...")
+            action = menu.exec_(self.tree.viewport().mapToGlobal(pos))
+            if action == act_bulk:
+                self.equipmentRequestedBulkEdit.emit()
+            return
         payload = item.data(0, Qt.UserRole) or {}
         if payload.get("kind") != "equipment":
             return
@@ -271,10 +279,10 @@ class LibraryPanel(QWidget):
         if dlg.exec_() != QDialog.Accepted:
             return
 
-        name, kind = dlg.get_values()
+        name, equipment_type = dlg.get_values()
         if not name:
             return
-        self.equipmentRequestedAdd.emit(name, kind)
+        self.equipmentRequestedAdd.emit(name, equipment_type)
 
 
 class AddEquipmentDialog(QDialog):
@@ -290,7 +298,7 @@ class AddEquipmentDialog(QDialog):
         form.addRow("Nombre:", self.edt_name)
 
         self.cmb_type = QComboBox()
-        self.cmb_type.addItems(["Equipo", "Armario"])
+        self.cmb_type.addItems(["Tablero", "Armario"])
         form.addRow("Tipo:", self.cmb_type)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -306,6 +314,5 @@ class AddEquipmentDialog(QDialog):
 
     def get_values(self) -> tuple[str, str]:
         name = self.edt_name.text().strip()
-        type_label = self.cmb_type.currentText().strip()
-        kind = "equipment" if type_label == "Equipo" else "cabinet"
-        return name, kind
+        equipment_type = self.cmb_type.currentText().strip() or "Tablero"
+        return name, equipment_type

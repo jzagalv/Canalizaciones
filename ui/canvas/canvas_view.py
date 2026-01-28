@@ -19,6 +19,7 @@ class CanvasView(QGraphicsView):
     troncal_remove_requested = pyqtSignal()
     edit_edge_tag_requested = pyqtSignal(str)
     edit_node_tag_requested = pyqtSignal(str)
+    open_cabinet_window_requested = pyqtSignal(str)
 
     def __init__(self, scene):
         super().__init__(scene)
@@ -170,9 +171,14 @@ class CanvasView(QGraphicsView):
                 scene.clearSelection()
             item.setSelected(True)
             menu = QMenu(self)
+            act_open_cabinet = None
+            if item.node_type in ("cabinet", "equipment"):
+                act_open_cabinet = menu.addAction("Abrir Armario/Tablero…")
             act_edit = menu.addAction("Editar TAG equipo")
             action = menu.exec_(event.globalPos())
-            if action == act_edit:
+            if act_open_cabinet is not None and action == act_open_cabinet:
+                self.open_cabinet_window_requested.emit(str(item.node_id))
+            elif action == act_edit:
                 self.edit_node_tag_requested.emit(str(item.node_id))
             event.accept()
             return

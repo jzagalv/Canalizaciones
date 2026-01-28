@@ -56,6 +56,8 @@ from ui.tabs.results_tab import ResultsTab
 from ui.dialogs.libraries_templates_dialog import LibrariesTemplatesDialog
 from ui.dialogs.conduit_segment_dialog import ConduitSegmentDialog
 from ui.dialogs.fill_rules_presets_dialog import FillRulesPresetsDialog
+from ui.dialogs.equipment_bulk_edit_dialog import EquipmentBulkEditDialog
+from ui.dialogs.cabinet_detail_dialog import CabinetDetailDialog
 from ui.theme_manager import apply_theme
 
 
@@ -87,6 +89,7 @@ class MainWindow(QMainWindow):
         self._base_template: Optional[BaseTemplate] = None
         self._lib_tpl_dialog: Optional[LibrariesTemplatesDialog] = None
         self._segment_dialog: Optional[ConduitSegmentDialog] = None
+        self._cabinet_dialog: Optional[CabinetDetailDialog] = None
         self._calc_dirty = True
         self._libs_pending_normalize: Dict[str, Dict] = {}
         self._equipment_items_by_id: Dict[str, Dict] = {}
@@ -250,8 +253,10 @@ class MainWindow(QMainWindow):
         self.tab_canvas.troncal_remove_requested.connect(self._troncal_remove_from_selected)
         self.tab_canvas.edit_edge_tag_requested.connect(self._edit_edge_tag_from_menu)
         self.tab_canvas.edit_node_tag_requested.connect(self._edit_node_tag_from_menu)
+        self.tab_canvas.open_cabinet_window_requested.connect(self._open_cabinet_detail_dialog)
         self.tab_canvas.library_panel.equipmentRequestedRename.connect(self._on_equipment_rename_requested)
         self.tab_canvas.library_panel.equipmentRequestedDelete.connect(self._on_equipment_delete_requested)
+        self.tab_canvas.library_panel.equipmentRequestedBulkEdit.connect(self._open_equipment_bulk_edit_dialog)
 
     def open_segment_dialog(self, segment_item) -> None:
         try:
@@ -825,7 +830,14 @@ class MainWindow(QMainWindow):
                 if not equip_id:
                     continue
                 equip_id = str(equip_id)
-                items_by_id[equip_id] = it
+                equip_type = str(it.get("equipment_type") or "").strip()
+                if not equip_type or equip_type == "Equipo":
+                    equip_type = "Tablero"
+                if equip_type not in ("Tablero", "Armario"):
+                    equip_type = "Tablero"
+                normalized = dict(it)
+                normalized["equipment_type"] = equip_type
+                items_by_id[equip_id] = normalized
                 item_sources.setdefault(equip_id, str(lr.path))
         self._equipment_items_by_id = items_by_id
         self._equipment_item_sources = item_sources
@@ -1142,6 +1154,21 @@ class MainWindow(QMainWindow):
         self.tab_canvas.scene.set_node_name(node_id, str(value or "").strip(), emit=False)
         self._on_project_mutated()
 
+    def _open_cabinet_detail_dialog(self, node_id: str) -> None:
+        node = self.tab_canvas.scene.get_node_data(node_id)
+        if not node:
+            return
+        self._cabinet_dialog = CabinetDetailDialog(
+            self,
+            project=self.project,
+            node_id=str(node_id),
+            material_service=self._material_service,
+            equipment_items_by_id=self._equipment_items_by_id,
+        )
+        self._cabinet_dialog.show()
+        self._cabinet_dialog.raise_()
+        self._cabinet_dialog.activateWindow()
+
     def _equipment_lib_path_for_id(self, item_id: str) -> Optional[str]:
         return self._equipment_item_sources.get(str(item_id))
 
@@ -1165,6 +1192,8 @@ class MainWindow(QMainWindow):
             "category": item.get("category") or "Usuario",
             "equipment_type": item.get("equipment_type"),
             "template_ref": item.get("template_ref"),
+            "cable_access": item.get("cable_access", "bottom"),
+            "dimensions_mm": item.get("dimensions_mm") or {"width": 0, "height": 0, "depth": 0},
         }
         try:
             upsert_equipment_item(lib_path, payload)
@@ -1234,11 +1263,16 @@ class MainWindow(QMainWindow):
         self._on_project_mutated()
         return str(lib_path)
 
-    def _on_equipment_add_requested(self, name: str, kind: str) -> None:
+    def _on_equipment_add_requested(self, name: str, equipment_type: str) -> None:
         equip_name = str(name or "").strip()
         if not equip_name:
             return
-        equip_type = "Equipo" if str(kind) == "equipment" else "Armario"
+        equip_type = str(equipment_type or "").strip()
+        if not equip_type or equip_type == "Equipo":
+            equip_type = "Tablero"
+        if equip_type not in ("Tablero", "Armario"):
+            QMessageBox.warning(self, "Equipos", "Tipo inválido. Usa Tablero o Armario.")
+            return
         equip_id = normalize_equipment_id(equip_name)
         item = {
             "id": equip_id,
@@ -1246,6 +1280,8 @@ class MainWindow(QMainWindow):
             "category": "Usuario",
             "equipment_type": equip_type,
             "template_ref": None,
+            "cable_access": "bottom",
+            "dimensions_mm": {"width": 0, "height": 0, "depth": 0},
         }
         lib_path = self._ensure_equipment_library()
         try:
@@ -1254,6 +1290,16 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Equipos", f"No se pudo guardar el equipo:\n{exc}")
             return
         self._refresh_equipment_library_items()
+
+    def _open_equipment_bulk_edit_dialog(self) -> None:
+        dlg = EquipmentBulkEditDialog(
+            self,
+            items_by_id=self._equipment_items_by_id,
+            item_sources=self._equipment_item_sources,
+            ensure_writable_lib_cb=self._ensure_equipment_library,
+        )
+        if dlg.exec_() == QDialog.Accepted:
+            self._refresh_equipment_library_items()
 
     def _project_dialog_dir(self) -> str:
         last_path = self._app_config.last_project_path

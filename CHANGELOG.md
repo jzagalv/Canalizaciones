@@ -1,3 +1,30 @@
+## 0.9.7-alpha - 2026-01-28
+- Fixed: QMessageBox en CanvasScene usa parent QWidget válido al validar conexión de tramo.
+
+## 0.9.6-alpha - 2026-01-28
+- Fixed: Se impide crear tramos que comiencen y terminen en el mismo nodo.
+
+## 0.9.5-alpha - 2026-01-28
+- Fixed: Ventana Armario/Tablero ahora lista y dibuja todas las canalizaciones conectadas al nodo (expande T1-A, T1-B, etc.), incluyendo múltiples tramos entrantes.
+
+## 0.9.4-alpha - 2026-01-28
+- Fixed: Ventana Armario/Tablero ahora considera todas las canalizaciones de todos los tramos conectados al nodo.
+
+## 0.9.3-alpha - 2026-01-28
+- Added: Cotado de dimensiones (mm) en vistas frontal, lateral e inferior de Armario/Tablero.
+
+## 0.9.2-alpha - 2026-01-28
+- Changed: Ajuste de layout y escalado real de vistas en ventana de armario/tablero.
+
+## 0.9.1-alpha - 2026-01-28
+- Fixed: Unificación del tipo de equipos a {Tablero, Armario} en todas las UIs y librerías.
+- Changed: "Equipo" queda deprecado y se migra a "Tablero" por compatibilidad.
+- Added: Ventana Armario/Tablero accesible desde menú contextual del nodo para visualizar tramos conectados y cables, con vista inferior dibujando cables según asignación existente.
+
+## 0.9.0-alpha - 2026-01-28
+- Added: Editor masivo de equipos/armarios desde menú contextual en “Equipos”.
+- Added: Campos cable_access y dimensions_mm en equipment_library items.
+
 ## 0.8.0-alpha - 2026-01-28
 - Added: Presets de reglas de llenado (CRUD) + preset activo por proyecto.
 - Changed: Motor usa reglas desde preset (no desde materiales).

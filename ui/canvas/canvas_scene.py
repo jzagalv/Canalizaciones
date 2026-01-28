@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 
 from PyQt5.QtCore import QObject, pyqtSignal, Qt, QRectF
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QPainterPath, QPainterPathStroker, QColor, QBrush, QPen
-from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem, QGraphicsPathItem
+from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem, QGraphicsPathItem, QMessageBox
 
 from PyQt5.QtPrintSupport import QPrinter
 
@@ -356,6 +356,8 @@ class CanvasScene(QGraphicsScene):
         return node_id
 
     def add_edge(self, from_node_id: str, to_node_id: str, kind: str = "duct") -> Optional[str]:
+        if str(from_node_id) == str(to_node_id):
+            return None
         if from_node_id not in self._nodes_by_id or to_node_id not in self._nodes_by_id:
             return None
         edge_id = self._next_edge_id()
@@ -503,8 +505,18 @@ class CanvasScene(QGraphicsScene):
                 if self._pending_from_node_id is None:
                     self._pending_from_node_id = item.node_id
                 else:
-                    self.add_edge(self._pending_from_node_id, item.node_id, kind="duct")
-                    self._pending_from_node_id = None
+                    if str(self._pending_from_node_id) == str(item.node_id):
+                        from PyQt5.QtWidgets import QApplication
+                        parent = view if view is not None else QApplication.activeWindow()
+                        QMessageBox.warning(
+                            parent,
+                            "Conectar tramo",
+                            "No se puede conectar un tramo al mismo nodo. Selecciona un nodo distinto para el extremo final.",
+                        )
+                        self._pending_from_node_id = None
+                    else:
+                        self.add_edge(self._pending_from_node_id, item.node_id, kind="duct")
+                        self._pending_from_node_id = None
             else:
                 self._pending_from_node_id = None
         super().mousePressEvent(event)

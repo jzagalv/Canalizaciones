@@ -36,6 +36,7 @@ class CanvasTab(QWidget):
     troncal_remove_requested = pyqtSignal()
     edit_edge_tag_requested = pyqtSignal(str)
     edit_node_tag_requested = pyqtSignal(str)
+    open_cabinet_window_requested = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -120,6 +121,7 @@ class CanvasTab(QWidget):
         self.view.troncal_remove_requested.connect(self.troncal_remove_requested)
         self.view.edit_edge_tag_requested.connect(self.edit_edge_tag_requested)
         self.view.edit_node_tag_requested.connect(self.edit_node_tag_requested)
+        self.view.open_cabinet_window_requested.connect(self.open_cabinet_window_requested)
         splitter.addWidget(self.view)
 
         self.detail_panel = QWidget()

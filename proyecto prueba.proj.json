@@ -37,14 +37,6 @@
         "library_item_id": null
       },
       {
-        "id": "N1",
-        "type": "equipment",
-        "name": "LCC-HT1",
-        "x": 3931.6674011897076,
-        "y": 3100.1686575288886,
-        "library_item_id": "lcc_ht1"
-      },
-      {
         "id": "N2",
         "type": "equipment",
         "name": "LCC-H1",
@@ -72,8 +64,8 @@
         "id": "N7",
         "type": "equipment",
         "name": "LCC-HS",
-        "x": 4438.470497149546,
-        "y": 3103.8760916887577,
+        "x": 3982.0086779187977,
+        "y": 2930.1618770827235,
         "library_item_id": "lcc_hs"
       },
       {
@@ -243,6 +235,14 @@
         "x": 5134.548658100042,
         "y": 2602.340576094164,
         "library_item_id": null
+      },
+      {
+        "id": "N1",
+        "type": "equipment",
+        "name": "LCC-HT1",
+        "x": 3934.736675980165,
+        "y": 3106.902993538103,
+        "library_item_id": "lcc_ht1"
       }
     ],
     "edges": [
@@ -346,57 +346,6 @@
         }
       },
       {
-        "id": "E3",
-        "from": "N1",
-        "to": "N3",
-        "from_node": "N1",
-        "to_node": "N3",
-        "kind": "duct",
-        "mode": "manual",
-        "runs": [
-          {
-            "catalog_id": "DUCT_PVC_75_MM_SCHEDULE_40_PVC",
-            "qty": 2
-          }
-        ],
-        "props": {
-          "tag": "",
-          "conduit_type": "Ducto",
-          "size": "PVC 75 mm",
-          "duct_standard": "Schedule 40 (PVC)",
-          "duct_uid": "e38e413f-309e-4685-9e43-7a93a16700d8",
-          "duct_snapshot": {
-            "uid": "e38e413f-309e-4685-9e43-7a93a16700d8",
-            "code": "DUCT_PVC_75_MM_SCHEDULE_40_PVC",
-            "name": "PVC 75 mm",
-            "shape": "circular",
-            "inner_diameter_mm": 62.4,
-            "max_fill_percent": 40,
-            "standard": "Schedule 40 (PVC)",
-            "material": "PVC"
-          },
-          "quantity": 2,
-          "columns": 1,
-          "cables": [],
-          "conduit_service_by_tag": {
-            "CanalizaciÃ³n A": "Libre",
-            "CanalizaciÃ³n B": "Libre"
-          },
-          "circuit_assignment": {
-            "C1": "CanalizaciÃ³n A",
-            "C2": "CanalizaciÃ³n A",
-            "C3": "CanalizaciÃ³n A"
-          },
-          "assignment_signature": "{'conduit_type': 'Ducto', 'size': 'PVC 75 mm', 'circuits': [('C1', 'power', 1, 24.0), ('C2', 'power', 1, 21.28), ('C3', 'power', 1, 13.24)], 'prefs': [('CanalizaciÃ³n A', 'Libre'), ('CanalizaciÃ³n B', 'Libre')]}",
-          "duct_spacing_mm": 25.0,
-          "duct_spacing_custom": false,
-          "fill_percent": 0.0,
-          "fill_max_percent": 33.0,
-          "fill_over": false,
-          "fill_state": "ok"
-        }
-      },
-      {
         "id": "E4",
         "from": "N2",
         "to": "N4",
@@ -467,17 +416,6 @@
         "props": {
           "troncal_id": "TR-001"
         }
-      },
-      {
-        "id": "E10",
-        "from": "N7",
-        "to": "N11",
-        "from_node": "N7",
-        "to_node": "N11",
-        "kind": "duct",
-        "mode": "manual",
-        "runs": [],
-        "props": {}
       },
       {
         "id": "E11",
@@ -679,6 +617,91 @@
         "props": {
           "troncal_id": "TR-002"
         }
+      },
+      {
+        "id": "E3",
+        "from": "N1",
+        "to": "N3",
+        "from_node": "N1",
+        "to_node": "N3",
+        "kind": "duct",
+        "mode": "manual",
+        "runs": [
+          {
+            "catalog_id": "DUCT_PVC_90_MM_SCHEDULE_40_PVC",
+            "qty": 2
+          }
+        ],
+        "props": {
+          "tag": "T1",
+          "conduit_type": "Ducto",
+          "size": "PVC 90 mm",
+          "duct_standard": "Schedule 40 (PVC)",
+          "duct_uid": "63eca297-a787-4abe-a0c0-2203a18709d0",
+          "duct_snapshot": {
+            "uid": "63eca297-a787-4abe-a0c0-2203a18709d0",
+            "code": "DUCT_PVC_90_MM_SCHEDULE_40_PVC",
+            "name": "PVC 90 mm",
+            "shape": "circular",
+            "inner_diameter_mm": 77.7,
+            "max_fill_percent": 40,
+            "standard": "Schedule 40 (PVC)",
+            "material": "PVC"
+          },
+          "quantity": 2,
+          "columns": 1,
+          "cables": [],
+          "conduit_service_by_tag": {
+            "CanalizaciÃ³n A": "Libre",
+            "T1-A": "Libre",
+            "T1-B": "Libre"
+          },
+          "circuit_assignment": {
+            "C1": "T1-A",
+            "C2": "T1-A",
+            "C3": "T1-A"
+          },
+          "assignment_signature": "{'conduit_type': 'Ducto', 'size': 'PVC 90 mm', 'circuits': [('C1', 'power', 1, 24.0), ('C2', 'power', 1, 21.28), ('C3', 'power', 1, 13.24)], 'prefs': [('CanalizaciÃ³n A', 'Libre'), ('T1-A', 'Libre'), ('T1-B', 'Libre')]}",
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false,
+          "fill_percent": 12.44,
+          "fill_max_percent": 33.0,
+          "fill_over": false,
+          "fill_state": "ok"
+        }
+      },
+      {
+        "id": "E10",
+        "from": "N7",
+        "to": "N1",
+        "from_node": "N7",
+        "to_node": "N1",
+        "kind": "epc",
+        "mode": "manual",
+        "runs": [],
+        "props": {
+          "tag": "T5",
+          "conduit_type": "EPC",
+          "size": "100x100",
+          "duct_standard": "",
+          "duct_uid": "",
+          "duct_snapshot": {},
+          "quantity": 1,
+          "columns": 1,
+          "cables": [],
+          "conduit_service_by_tag": {
+            "CanalizaciÃ³n A": "Libre",
+            "T5-A": "Libre"
+          },
+          "circuit_assignment": {},
+          "assignment_signature": "{'conduit_type': 'EPC', 'size': '100x100', 'circuits': [], 'prefs': [('CanalizaciÃ³n A', 'Libre'), ('T5-A', 'Libre')]}",
+          "duct_spacing_mm": 25.0,
+          "duct_spacing_custom": false,
+          "fill_percent": 0.0,
+          "fill_max_percent": 33.0,
+          "fill_over": false,
+          "fill_state": "ok"
+        }
       }
     ],
     "background": {
@@ -694,10 +717,10 @@
       "image_format": "png"
     },
     "view": {
-      "scale": 1.08223728510856,
+      "scale": 2.176765741983588,
       "center": [
-        4200.557551058673,
-        3142.5640631655406
+        4084.9595473223144,
+        3089.905298615597
       ]
     }
   },

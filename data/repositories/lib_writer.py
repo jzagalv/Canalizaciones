@@ -45,6 +45,15 @@ def normalize_equipment_id(name: str) -> str:
     return raw or "user_equipo"
 
 
+def normalize_equipment_type(value: object) -> str:
+    raw = str(value or "").strip()
+    if not raw or raw == "Equipo":
+        return "Tablero"
+    if raw in ("Tablero", "Armario"):
+        return raw
+    raise LibWriteError("equipment_type invalido. Usa 'Tablero' o 'Armario'.")
+
+
 def _ensure_equipment_library_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(doc, dict):
         raise LibWriteError("Documento de libreria invalido")
@@ -78,8 +87,10 @@ def upsert_equipment_item(lib_path: str, item: Dict[str, Any]) -> Dict[str, Any]
         "id": item_id,
         "name": str(item.get("name") or item_id),
         "category": str(item.get("category") or "Usuario"),
-        "equipment_type": item.get("equipment_type"),
+        "equipment_type": normalize_equipment_type(item.get("equipment_type")),
         "template_ref": item.get("template_ref"),
+        "cable_access": item.get("cable_access", "bottom"),
+        "dimensions_mm": item.get("dimensions_mm") or {"width": 0, "height": 0, "depth": 0},
     }
 
     items = list(doc.get("items") or [])

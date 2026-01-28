@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Tuple
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QCheckBox,
-    QDialog,
     QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
@@ -21,16 +20,17 @@ from PyQt5.QtWidgets import (
     QWidget,
     QMessageBox,
 )
+from ui.dialogs.base_dialog import BaseDialog
 
 
-class FillRulesEditorDialog(QDialog):
+class FillRulesEditorDialog(BaseDialog):
     def __init__(self, preset: Dict[str, Any], parent: QWidget | None = None):
-        super().__init__(parent)
+        super().__init__(parent, title="Editar reglas de llenado")
         self.setWindowTitle("Editar reglas de llenado")
         self._preset = dict(preset or {})
         self._rules = dict(self._preset.get("rules") or {})
 
-        root = QVBoxLayout(self)
+        root = self.body_layout
 
         self.tbl_ranges = QTableWidget(0, 3)
         self.tbl_ranges.setHorizontalHeaderLabels(["Min", "Max", "% Max"])
@@ -56,7 +56,7 @@ class FillRulesEditorDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
-        root.addWidget(buttons)
+        self.footer_layout.addWidget(buttons)
 
         self._load_rules()
 

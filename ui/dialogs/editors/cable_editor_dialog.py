@@ -7,23 +7,23 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtWidgets import (
     QComboBox,
-    QDialog,
     QDialogButtonBox,
     QFormLayout,
     QLineEdit,
     QMessageBox,
     QVBoxLayout,
 )
+from ui.dialogs.base_dialog import BaseDialog
 
 
-class CableEditorDialog(QDialog):
+class CableEditorDialog(BaseDialog):
     def __init__(self, parent=None, data: Optional[Dict[str, Any]] = None, existing_ids: Optional[List[str]] = None) -> None:
-        super().__init__(parent)
+        super().__init__(parent, title="Editar cable")
         self.setWindowTitle("Editar cable")
         self._existing_ids = set(existing_ids or [])
         self._result: Optional[Dict[str, Any]] = None
 
-        root = QVBoxLayout(self)
+        root = self.body_layout
         form = QFormLayout()
         root.addLayout(form)
 
@@ -55,7 +55,7 @@ class CableEditorDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
-        root.addWidget(buttons)
+        self.footer_layout.addWidget(buttons)
 
         if data:
             self._load_data(data)

@@ -38,7 +38,7 @@ class CanvasTab(QWidget):
     edit_node_tag_requested = pyqtSignal(str)
     open_cabinet_window_requested = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, embed_toolbar: bool = True, embed_detail_panel: bool = True):
         super().__init__()
         self._project: Optional[Project] = None
         self._selection_snapshot: Dict = {}
@@ -53,14 +53,17 @@ class CanvasTab(QWidget):
 
         self._suspend_view_updates = False
 
+        self._embed_toolbar = embed_toolbar
+        self._embed_detail_panel = embed_detail_panel
         self._build_ui()
 
     def _build_ui(self):
         root = QVBoxLayout(self)
 
         # ---------------- Top toolbar ----------------
-        top = QHBoxLayout()
-        root.addLayout(top)
+        self.toolbar_widget = QWidget()
+        top = QHBoxLayout(self.toolbar_widget)
+        top.setContentsMargins(0, 0, 0, 0)
 
         self.btn_connect = QPushButton("Conectar tramo")
         self.btn_connect.setCheckable(True)
@@ -105,6 +108,8 @@ class CanvasTab(QWidget):
         top.addWidget(self.btn_export_pdf)
 
         top.addStretch(1)
+        if self._embed_toolbar:
+            root.addWidget(self.toolbar_widget)
 
         # ---------------- Main splitter ----------------
         splitter = QSplitter(Qt.Horizontal)
@@ -132,11 +137,13 @@ class CanvasTab(QWidget):
         detail_layout.addWidget(self.lbl_detail_fill)
         detail_layout.addStretch(1)
         self.detail_panel.setMinimumWidth(220)
-        splitter.addWidget(self.detail_panel)
+        if self._embed_detail_panel:
+            splitter.addWidget(self.detail_panel)
 
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
+        if self._embed_detail_panel:
+            splitter.setStretchFactor(2, 0)
 
     # ---------------- Integration ----------------
     def set_equipment_items(self, items_by_id: Dict[str, Dict]):

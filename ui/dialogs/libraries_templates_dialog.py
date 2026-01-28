@@ -6,7 +6,6 @@ from typing import Dict, Optional
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (
     QComboBox,
-    QDialog,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -16,9 +15,10 @@ from PyQt5.QtWidgets import (
 )
 
 from ui.widgets.library_editor_widget import LibraryEditorWidget
+from ui.dialogs.base_dialog import BaseDialog
 
 
-class LibrariesTemplatesDialog(QDialog):
+class LibrariesTemplatesDialog(BaseDialog):
     request_load_materiales = pyqtSignal()
     request_save_materiales = pyqtSignal()
     request_save_materiales_as = pyqtSignal()
@@ -30,7 +30,7 @@ class LibrariesTemplatesDialog(QDialog):
     installation_type_changed = pyqtSignal(str)
 
     def __init__(self, parent=None) -> None:
-        super().__init__(parent)
+        super().__init__(parent, title="Administrador de materiales_bd.lib y Plantillas")
         self.setWindowTitle("Administrador de materiales_bd.lib y Plantillas")
         self.setWindowModality(Qt.NonModal)
         self.setMinimumSize(980, 600)
@@ -39,7 +39,7 @@ class LibrariesTemplatesDialog(QDialog):
         self._materiales_path: str = ""
         self._template_path: str = ""
 
-        root = QVBoxLayout(self)
+        root = self.body_layout
         header = QHBoxLayout()
         header.addWidget(QLabel("Administrador de materiales_bd.lib y Plantillas"), 1)
         root.addLayout(header)

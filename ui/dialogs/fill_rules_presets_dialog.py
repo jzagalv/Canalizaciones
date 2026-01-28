@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from PyQt5.QtWidgets import (
-    QDialog,
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
@@ -25,17 +24,18 @@ from data.repositories.fill_rules_presets_store import (
     update_preset,
 )
 from ui.dialogs.fill_rules_editor_dialog import FillRulesEditorDialog
+from ui.dialogs.base_dialog import BaseDialog
 
 
-class FillRulesPresetsDialog(QDialog):
+class FillRulesPresetsDialog(BaseDialog):
     def __init__(self, app_dir, project, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, title="Presets de reglas de llenado")
         self.setWindowTitle("Presets de reglas de llenado")
         self._app_dir = app_dir
         self._project = project
         self._doc = ensure_default_presets(app_dir)
 
-        root = QVBoxLayout(self)
+        root = self.body_layout
         root.addWidget(QLabel("Presets disponibles"))
         self.list = QListWidget()
         root.addWidget(self.list, 1)
@@ -56,7 +56,7 @@ class FillRulesPresetsDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.rejected.connect(self.reject)
         buttons.accepted.connect(self.accept)
-        root.addWidget(buttons)
+        self.footer_layout.addWidget(buttons)
 
         self.btn_new.clicked.connect(self._on_new)
         self.btn_dup.clicked.connect(self._on_duplicate)

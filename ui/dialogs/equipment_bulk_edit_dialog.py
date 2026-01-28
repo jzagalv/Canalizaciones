@@ -17,9 +17,10 @@ from PyQt5.QtWidgets import (
 )
 
 from data.repositories.lib_writer import LibWriteError, upsert_equipment_item
+from ui.dialogs.base_dialog import BaseDialog
 
 
-class EquipmentBulkEditDialog(QDialog):
+class EquipmentBulkEditDialog(BaseDialog):
     def __init__(
         self,
         parent: Optional[object] = None,
@@ -27,13 +28,11 @@ class EquipmentBulkEditDialog(QDialog):
         item_sources: Optional[Dict[str, str]] = None,
         ensure_writable_lib_cb: Optional[Callable[[], str]] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent, title="Editar equipos/armarios")
         self.setWindowTitle("Editar equipos/armarios")
         self._items_by_id = dict(items_by_id or {})
         self._item_sources = dict(item_sources or {})
         self._ensure_writable_lib_cb = ensure_writable_lib_cb
-
-        root = QVBoxLayout(self)
 
         self.table = QTableWidget(0, 6, self)
         self.table.setHorizontalHeaderLabels(
@@ -53,7 +52,7 @@ class EquipmentBulkEditDialog(QDialog):
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
-        root.addWidget(self.table)
+        self.body_layout.addWidget(self.table)
 
         self._load_items()
 
@@ -63,7 +62,7 @@ class EquipmentBulkEditDialog(QDialog):
             save_btn.setText("Guardar")
         buttons.accepted.connect(self._on_save)
         buttons.rejected.connect(self.reject)
-        root.addWidget(buttons)
+        self.footer_layout.addWidget(buttons)
 
     def _load_items(self) -> None:
         rows: List[Tuple[str, Dict[str, Any]]] = sorted(

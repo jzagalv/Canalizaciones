@@ -10,7 +10,6 @@ from PyQt5.QtCore import Qt, QRectF, pyqtSignal
 from PyQt5.QtGui import QPen, QBrush, QColor, QFont, QPainter, QPainterPath, QFontMetrics
 from PyQt5.QtWidgets import (
     QComboBox,
-    QDialog,
     QFormLayout,
     QGraphicsEllipseItem,
     QGraphicsPathItem,
@@ -51,6 +50,7 @@ from domain.services.cable_layout import (
     layout_cables_in_circle,
     layout_cables_in_rect,
 )
+from ui.dialogs.base_dialog import BaseDialog
 
 
 class SectionGraphicsView(QGraphicsView):
@@ -71,9 +71,9 @@ class SectionGraphicsView(QGraphicsView):
         event.accept()
 
 
-class ConduitSegmentDialog(QDialog):
+class ConduitSegmentDialog(BaseDialog):
     def __init__(self, parent=None, material_service: Optional[MaterialService] = None):
-        super().__init__(parent)
+        super().__init__(parent, title="Características del tramo")
         self.setWindowTitle("Características del tramo")
         self.setModal(False)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
@@ -108,10 +108,8 @@ class ConduitSegmentDialog(QDialog):
         self._build_ui()
 
     def _build_ui(self) -> None:
-        root = QVBoxLayout(self)
-
         splitter = QSplitter(Qt.Horizontal)
-        root.addWidget(splitter, 1)
+        self.body_layout.addWidget(splitter, 1)
 
         left = QWidget()
         left_layout = QVBoxLayout(left)

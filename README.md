@@ -103,3 +103,31 @@ En la pestaña Canvas:
 - **Fondo bloqueado/desbloqueado**: evita mover/seleccionar el fondo accidentalmente.
 - **Opacidad**: permite ver mejor los elementos sobre el plano.
 - **Exportar PNG / PDF**: exporta la escena para adjuntar directamente en informes.
+
+## Arquitectura UI (Dashboard)
+
+La interfaz principal usa un **Dashboard Shell** con:
+- Sidebar (navegación global)
+- Header (contexto del proyecto + acciones globales)
+- ActionBar (acciones por vista)
+- Contenido central (QStackedWidget)
+- Inspector derecho (propiedades contextuales)
+
+Componentes clave:
+- `ui/shell/dashboard_shell.py`: layout principal (sidebar/header/actionbar/stack/inspector)
+- `ui/widgets/sidebar_nav.py`: navegación lateral
+- `ui/widgets/header_bar.py`: barra superior
+- `ui/widgets/inspector_panel.py`: panel contextual
+
+### Cómo agregar una nueva página
+1) Crear el widget de la página (ej. `MyPage(QWidget)`).
+2) Agregarlo al stack en `ui/main_window.py`:
+   - `self.shell.stack.addWidget(my_page)`
+   - `self.shell.sidebar.add_item("my_page", "Mi Página")`
+3) En `_on_nav_requested`, mapear la key al índice del stack.
+
+### Estilos (QSS)
+Usa propiedades para consistencia:
+- `primary="true"`, `secondary="true"`, `danger="true"` en botones.
+- `card="true"` en `QFrame` para tarjetas.
+- Contenedores principales: `#SidebarNav`, `#HeaderBar`, `#ActionBar`, `#InspectorPanel`.

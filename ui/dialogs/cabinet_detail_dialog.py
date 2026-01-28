@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Set, Tuple
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QBrush, QPen, QPainter, QFont
 from PyQt5.QtWidgets import (
-    QDialog,
     QGraphicsEllipseItem,
     QGraphicsRectItem,
     QGraphicsScene,
@@ -26,9 +25,10 @@ from PyQt5.QtWidgets import (
 from domain.calculations.formatting import fmt2, fmt_percent
 from domain.materials.material_service import MaterialService
 from domain.services.cable_layout import expand_cable_items, layout_cables_in_circle, layout_cables_in_rect
+from ui.dialogs.base_dialog import BaseDialog
 
 
-class CabinetDetailDialog(QDialog):
+class CabinetDetailDialog(BaseDialog):
     def __init__(
         self,
         parent: Optional[object] = None,
@@ -37,7 +37,7 @@ class CabinetDetailDialog(QDialog):
         material_service: Optional[MaterialService] = None,
         equipment_items_by_id: Optional[Dict[str, Dict[str, object]]] = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent, title="Ventana Armario/Tablero")
         self.setWindowTitle("Ventana Armario/Tablero")
         self.setModal(False)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
@@ -54,9 +54,8 @@ class CabinetDetailDialog(QDialog):
         self._load_data()
 
     def _build_ui(self) -> None:
-        root = QVBoxLayout(self)
         splitter = QSplitter(Qt.Horizontal)
-        root.addWidget(splitter, 1)
+        self.body_layout.addWidget(splitter, 1)
 
         left = QWidget()
         left_layout = QVBoxLayout(left)

@@ -9,9 +9,8 @@ from typing import Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
-    QAction, QActionGroup, QApplication, QFileDialog, QHBoxLayout, QLabel,
-    QMainWindow, QMessageBox, QPushButton, QSplitter, QTabWidget, QVBoxLayout,
-    QWidget, QInputDialog, QDialog
+    QAction, QActionGroup, QApplication, QFileDialog, QLabel,
+    QMainWindow, QMessageBox, QInputDialog, QDialog
 )
 
 from data.repositories.project_store import load_project, save_project
@@ -59,6 +58,7 @@ from ui.dialogs.fill_rules_presets_dialog import FillRulesPresetsDialog
 from ui.dialogs.equipment_bulk_edit_dialog import EquipmentBulkEditDialog
 from ui.dialogs.cabinet_detail_dialog import CabinetDetailDialog
 from ui.theme_manager import apply_theme
+from ui.shell.dashboard_shell import DashboardShell
 
 
 class MainWindow(QMainWindow):
@@ -188,54 +188,34 @@ class MainWindow(QMainWindow):
 
     # -------------------- UI --------------------
     def _build_ui(self) -> None:
-        cw = QWidget(self)
-        self.setCentralWidget(cw)
-        root = QVBoxLayout(cw)
+        self.shell = DashboardShell(self)
+        self.setCentralWidget(self.shell)
 
-        top = QHBoxLayout()
-        root.addLayout(top)
-
-        self.lbl_project = QLabel("Proyecto: (sin guardar)")
-        self.lbl_project.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        top.addWidget(self.lbl_project, 1)
-
-        self.lbl_materiales = QLabel("materiales_bd.lib activo: (no cargado)")
-        self.lbl_materiales.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        top.addWidget(self.lbl_materiales, 1)
-
-        self.btn_validate = QPushButton("Validar bibliotecas")
-        self.btn_validate.setProperty("secondary", True)
-        self.btn_validate.clicked.connect(self._validate_libs)
-        top.addWidget(self.btn_validate)
-
-        self.btn_recalc = QPushButton("Recalcular")
-        self.btn_recalc.setProperty("primary", True)
-        self.btn_recalc.clicked.connect(self._recalculate)
-        top.addWidget(self.btn_recalc)
-
-        splitter = QSplitter(Qt.Vertical)
-        root.addWidget(splitter, 1)
-
-        self.tabs = QTabWidget()
-        splitter.addWidget(self.tabs)
-
-        # Tabs
-        self.tab_canvas = CanvasTab()
+        # Pages
+        self.tab_canvas = CanvasTab(embed_toolbar=False, embed_detail_panel=False)
         self.tab_circuits = CircuitsTab()
         self.tab_equipment_lib = EquipmentLibraryTab()
         self.tab_primary = PrimaryEquipmentTab()
         self.tab_results = ResultsTab()
 
-        self.tabs.addTab(self.tab_canvas, "Canvas")
-        self.tabs.addTab(self.tab_circuits, "Circuitos")
-        self.tabs.addTab(self.tab_results, "Resultados")
+        self._page_keys = ["canvas", "circuits", "results"]
+        self.shell.stack.addWidget(self.tab_canvas)
+        self.shell.stack.addWidget(self.tab_circuits)
+        self.shell.stack.addWidget(self.tab_results)
 
-        self.lbl_status = QLabel("")
-        self.lbl_status.setWordWrap(True)
-        self.lbl_status.setObjectName("statusLabel")
-        splitter.addWidget(self.lbl_status)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 0)
+        self.shell.sidebar.add_item("canvas", "Canvas")
+        self.shell.sidebar.add_item("circuits", "Circuitos")
+        self.shell.sidebar.add_item("results", "Resultados")
+        self.shell.sidebar.set_active("canvas")
+        self.shell.sidebar.navRequested.connect(self._on_nav_requested)
+        self.shell.set_action_widget(self.tab_canvas.toolbar_widget)
+
+        self.shell.header.btn_validate.clicked.connect(self._validate_libs)
+        self.shell.header.btn_recalc.clicked.connect(self._recalculate)
+
+        self.lbl_project = self.shell.header.lbl_project
+        self.lbl_materiales = self.shell.header.lbl_libs
+        self.lbl_status = self.shell.header.lbl_status
 
         # wiring
         self.tab_canvas.project_changed.connect(self._on_project_mutated)
@@ -248,6 +228,7 @@ class MainWindow(QMainWindow):
         self.tab_canvas.segment_double_clicked.connect(self.open_segment_dialog)
         self.tab_canvas.segment_removed.connect(self._on_segment_removed)
         self.tab_canvas.equipment_add_requested.connect(self._on_equipment_add_requested)
+        self.tab_canvas.selection_changed.connect(self._update_inspector_from_selection)
         self.tab_canvas.troncal_create_requested.connect(self._troncal_create_or_assign_from_selected)
         self.tab_canvas.troncal_add_requested.connect(self._troncal_add_connected_from_selected)
         self.tab_canvas.troncal_remove_requested.connect(self._troncal_remove_from_selected)
@@ -275,6 +256,22 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self._logger.exception("Failed to open segment dialog")
             QMessageBox.critical(self, "Error", f"No se pudo abrir el dialogo del tramo:\n{exc}")
+
+    def _on_nav_requested(self, key: str) -> None:
+        index_map = {"canvas": 0, "circuits": 1, "results": 2}
+        idx = index_map.get(str(key), 0)
+        self.shell.stack.setCurrentIndex(idx)
+        self.shell.sidebar.set_active(str(key))
+        if key == "canvas":
+            self.shell.set_action_widget(self.tab_canvas.toolbar_widget)
+        else:
+            self.shell.set_action_widget(None)
+
+    def _update_inspector_from_selection(self, payload: Dict) -> None:
+        try:
+            self.shell.inspector.set_selection(self.project, payload or {})
+        except Exception:
+            pass
 
     def _on_theme_toggled(self, theme: str, checked: bool) -> None:
         if not checked:

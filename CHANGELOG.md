@@ -1,3 +1,6 @@
+## 0.10.0-alpha - 2026-01-28
+- Added: UI Redesign Dashboard (sidebar + header + actionbar + inspector) aplicado a la ventana principal.
+
 ## 0.9.7-alpha - 2026-01-28
 - Fixed: QMessageBox en CanvasScene usa parent QWidget válido al validar conexión de tramo.
 

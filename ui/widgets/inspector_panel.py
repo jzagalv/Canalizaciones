@@ -19,6 +19,7 @@ class InspectorPanel(QScrollArea):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("InspectorPanel")
+        self.setProperty("role", "inspector")
         self.setWidgetResizable(True)
         container = QWidget()
         self.setWidget(container)

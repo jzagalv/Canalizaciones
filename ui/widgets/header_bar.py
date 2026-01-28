@@ -10,6 +10,7 @@ class HeaderBar(QFrame):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("HeaderBar")
+        self.setProperty("role", "header")
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 10, 16, 10)
         layout.setSpacing(12)

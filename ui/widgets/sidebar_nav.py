@@ -13,6 +13,7 @@ class SidebarNav(QFrame):
     def __init__(self, parent: Optional[QFrame] = None) -> None:
         super().__init__(parent)
         self.setObjectName("SidebarNav")
+        self.setProperty("role", "sidebar")
         self._buttons: Dict[str, QToolButton] = {}
 
         layout = QVBoxLayout(self)

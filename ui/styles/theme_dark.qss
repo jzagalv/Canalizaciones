@@ -5,31 +5,36 @@ QWidget {
     font-family: "Segoe UI";
 }
 
-QFrame#SidebarNav {
+QFrame#SidebarNav,
+QFrame[role="sidebar"] {
     background: #151b21;
     border-right: 1px solid #2f3a44;
     min-width: 190px;
     max-width: 220px;
 }
 
-QFrame#HeaderBar {
+QFrame#HeaderBar,
+QFrame[role="header"] {
     background: #1f262e;
     border-bottom: 1px solid #2f3a44;
 }
 
-QFrame#ActionBar {
+QFrame#ActionBar,
+QFrame[role="actionbar"] {
     background: #1f262e;
     border-bottom: 1px solid #2f3a44;
 }
 
-QScrollArea#InspectorPanel {
+QScrollArea#InspectorPanel,
+QFrame[role="inspector"] {
     background: #1f262e;
     border-left: 1px solid #2f3a44;
     min-width: 260px;
     max-width: 320px;
 }
 
-#SidebarNav QToolButton {
+#SidebarNav QToolButton,
+QFrame[role="sidebar"] QToolButton {
     background: #232b33;
     color: #e6edf3;
     border: 1px solid #2f3a44;
@@ -38,11 +43,13 @@ QScrollArea#InspectorPanel {
     text-align: left;
 }
 
-#SidebarNav QToolButton:hover {
+#SidebarNav QToolButton:hover,
+QFrame[role="sidebar"] QToolButton:hover {
     background: #2a333b;
 }
 
-#SidebarNav QToolButton:checked {
+#SidebarNav QToolButton:checked,
+QFrame[role="sidebar"] QToolButton:checked {
     background: #2f7f9f;
     border-color: #2a708c;
     color: #ffffff;
@@ -52,6 +59,24 @@ QFrame[card="true"] {
     background: #202830;
     border: 1px solid #2f3a44;
     border-radius: 12px;
+}
+
+QSplitter::handle {
+    background: #2f3a44;
+}
+
+QGroupBox {
+    border: 1px solid #2f3a44;
+    border-radius: 10px;
+    margin-top: 10px;
+    padding: 6px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 6px;
+    color: #b6c2cc;
 }
 
 QFrame#DialogHeader {

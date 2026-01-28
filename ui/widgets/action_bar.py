@@ -10,6 +10,7 @@ class ActionBar(QFrame):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("ActionBar")
+        self.setProperty("role", "actionbar")
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(12, 8, 12, 8)
         self._layout.setSpacing(8)

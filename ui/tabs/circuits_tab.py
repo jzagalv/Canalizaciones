@@ -15,6 +15,7 @@ from data.repositories.lib_merge import EffectiveCatalog
 from domain.entities.models import Project
 from domain.materials.material_service import MaterialService
 from domain.services.canvas_nodes import NodeOption, list_canvas_nodes_for_circuits
+from ui.widgets.card_frame import CardFrame
 
 
 class CircuitsTab(QWidget):
@@ -42,8 +43,11 @@ class CircuitsTab(QWidget):
 
         root = QVBoxLayout(self)
 
-        top = QHBoxLayout()
-        root.addLayout(top)
+        top_card = CardFrame()
+        top_card_layout = QHBoxLayout(top_card)
+        top_card_layout.setContentsMargins(8, 8, 8, 8)
+        root.addWidget(top_card)
+        top = top_card_layout
         top.addWidget(QLabel('Equipo:'))
         self.cmb_filter = QComboBox()
         self.cmb_filter.addItem("Todos", "")
@@ -63,12 +67,16 @@ class CircuitsTab(QWidget):
         self.btn_template.clicked.connect(self._generate_from_template)
         top.addWidget(self.btn_template)
 
+        table_card = CardFrame()
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(8, 8, 8, 8)
         self.tbl = QTableWidget(0, 9)
         self.tbl.setHorizontalHeaderLabels([
             'Name', 'Service', 'Cable', 'Qty', 'Origen', 'Destino', 'Recorrido', 'Estado', 'CircuitId'
         ])
         self.tbl.itemChanged.connect(self._on_item_changed)
-        root.addWidget(self.tbl, 1)
+        table_layout.addWidget(self.tbl)
+        root.addWidget(table_card, 1)
 
         hint = QLabel('Tip: Para calcular rutas compartidas, selecciona Origen/Destino desde los nodos del canvas.')
         hint.setWordWrap(True)

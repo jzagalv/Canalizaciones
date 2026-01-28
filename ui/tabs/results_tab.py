@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 
 from domain.entities.models import Project
 from domain.calculations.formatting import fmt_percent
+from ui.widgets.card_frame import CardFrame
 
 
 class ResultsTab(QWidget):
@@ -16,14 +17,22 @@ class ResultsTab(QWidget):
         super().__init__()
         root = QVBoxLayout(self)
 
-        root.addWidget(QLabel('Resultados por tramo (edge)'))
+        header_card = CardFrame()
+        header_layout = QVBoxLayout(header_card)
+        header_layout.setContentsMargins(8, 8, 8, 8)
+        header_layout.addWidget(QLabel('Resultados por tramo (edge)'))
+        root.addWidget(header_card)
 
+        table_card = CardFrame()
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(8, 8, 8, 8)
         self.tbl = QTableWidget(0, 6)
         self.tbl.setHorizontalHeaderLabels(['EdgeId', 'Kind', 'Propuesta', 'Fill', 'Status', 'Notas'])
         self.tbl.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.tbl.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
         self.tbl.verticalHeader().setVisible(False)
-        root.addWidget(self.tbl, 1)
+        table_layout.addWidget(self.tbl)
+        root.addWidget(table_card, 1)
 
         self.lbl_warn = QLabel('')
         self.lbl_warn.setWordWrap(True)

@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Optional
 
 from PyQt5.QtWidgets import (
-    QFrame,
     QHBoxLayout,
     QStackedWidget,
     QVBoxLayout,
@@ -14,6 +13,7 @@ from PyQt5.QtWidgets import (
 from ui.widgets.sidebar_nav import SidebarNav
 from ui.widgets.header_bar import HeaderBar
 from ui.widgets.inspector_panel import InspectorPanel
+from ui.widgets.action_bar import ActionBar
 
 
 class DashboardShell(QWidget):
@@ -39,11 +39,7 @@ class DashboardShell(QWidget):
         center.setSpacing(0)
         body.addLayout(center, 1)
 
-        self.action_bar = QFrame(self)
-        self.action_bar.setObjectName("ActionBar")
-        self._action_layout = QHBoxLayout(self.action_bar)
-        self._action_layout.setContentsMargins(12, 8, 12, 8)
-        self._action_layout.setSpacing(8)
+        self.action_bar = ActionBar(self)
         center.addWidget(self.action_bar)
 
         self.stack = QStackedWidget(self)
@@ -54,13 +50,4 @@ class DashboardShell(QWidget):
         body.addWidget(self.inspector)
 
     def set_action_widget(self, widget: Optional[QWidget]) -> None:
-        while self._action_layout.count():
-            item = self._action_layout.takeAt(0)
-            if item and item.widget():
-                item.widget().setParent(None)
-        if widget is not None:
-            widget.setParent(self.action_bar)
-            self._action_layout.addWidget(widget)
-            self._action_layout.addStretch(1)
-        else:
-            self._action_layout.addStretch(1)
+        self.action_bar.set_action_widget(widget)

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import uuid
@@ -16,6 +16,7 @@ from domain.entities.models import Project
 from domain.materials.material_service import MaterialService
 from domain.services.canvas_nodes import NodeOption, list_canvas_nodes_for_circuits
 from ui.widgets.card_frame import CardFrame
+from ui.utils.event_logger import log_event
 
 
 class CircuitsTab(QWidget):
@@ -77,6 +78,10 @@ class CircuitsTab(QWidget):
         self.tbl.itemChanged.connect(self._on_item_changed)
         table_layout.addWidget(self.tbl)
         root.addWidget(table_card, 1)
+
+    def _emit_project_changed(self) -> None:
+        log_event("emit_project_changed", "circuits_tab")
+        self.project_changed.emit()
 
         hint = QLabel('Tip: Para calcular rutas compartidas, selecciona Origen/Destino desde los nodos del canvas.')
         hint.setWordWrap(True)
@@ -208,7 +213,7 @@ class CircuitsTab(QWidget):
             'from_node': self._active_node_id,
             'to_node': '',
         })
-        self.project_changed.emit()
+        self._emit_project_changed()
         self._refresh()
 
     def _del_circuit(self):
@@ -221,7 +226,7 @@ class CircuitsTab(QWidget):
         if not cid:
             return
         self._project.circuits['items'] = [c for c in (self._project.circuits.get('items') or []) if c.get('id') != cid]
-        self.project_changed.emit()
+        self._emit_project_changed()
         self._refresh()
 
     def _on_item_changed(self, item: QTableWidgetItem):
@@ -245,7 +250,7 @@ class CircuitsTab(QWidget):
         if item.column() == self.COL_SERVICE:
             self._refresh_cable_combo(row)
         self._update_row_status(row)
-        self.project_changed.emit()
+        self._emit_project_changed()
 
     def _generate_from_template(self):
         if not self._project:
@@ -257,7 +262,7 @@ class CircuitsTab(QWidget):
             QMessageBox.information(self, 'Bibliotecas', 'Primero valida/combina bibliotecas (boton en barra superior).')
             return
 
-        # pick first applicable template (best effort) â€” later we can choose via dialog
+        # pick first applicable template (best effort) — later we can choose via dialog
         templates = list(self._eff.templates.get('equipment_templates_by_id', {}).values())
         profile = self._project.active_profile
         tpl = next((t for t in templates if profile in (t.get('applies_to_profiles') or [])), None)
@@ -283,7 +288,7 @@ class CircuitsTab(QWidget):
             created += 1
 
         self._project.circuits['source'] = 'generated_from_templates'
-        self.project_changed.emit()
+        self._emit_project_changed()
         self._refresh()
         QMessageBox.information(self, 'Plantillas', f'Se generaron {created} circuitos desde plantilla.')
 
@@ -315,7 +320,7 @@ class CircuitsTab(QWidget):
         cables = self._list_cables_for_service(service_norm)
         valid_ids = [str(c.get("uid") or "") for c in cables if c.get("uid")]
         if cables:
-            combo.addItem("(sin selecciÃ³n)", "")
+            combo.addItem("(sin selección)", "")
             for cable in cables:
                 cid = str(cable.get("uid") or "")
                 name = self._cable_label(cable)
@@ -415,7 +420,7 @@ class CircuitsTab(QWidget):
                 c["cable_snapshot"] = snap
         self._sync_cable_combo_warning(combo)
         self._update_row_status(row)
-        self.project_changed.emit()
+        self._emit_project_changed()
 
     def _sync_cable_combo_warning(self, combo: QComboBox) -> None:
         no_matches = bool(combo.property("no_matches"))
@@ -481,7 +486,7 @@ class CircuitsTab(QWidget):
         node_id = combo.currentData()
         c[field] = str(node_id or "")
         self._update_row_status(row)
-        self.project_changed.emit()
+        self._emit_project_changed()
 
     def _update_row_status(self, row: int, cable_missing: Optional[bool] = None) -> None:
         item_id = self.tbl.item(row, self.COL_ID)
@@ -621,3 +626,4 @@ class CircuitsTab(QWidget):
             return str(label)
         edge_id = str(edge.get("id") or "")
         return edge_id[:6] if edge_id else "(sin id)"
+

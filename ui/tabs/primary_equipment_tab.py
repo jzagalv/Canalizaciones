@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 )
 
 from domain.entities.models import Project
+from ui.utils.event_logger import log_event
 
 
 class PrimaryEquipmentTab(QWidget):
@@ -61,7 +62,7 @@ class PrimaryEquipmentTab(QWidget):
             return
         self._project.primary_equipment.append({"tag":"", "type":"", "kv":"", "location":"", "notes":""})
         self._reload()
-        self.project_changed.emit()
+        self._emit_project_changed()
 
     def _del_selected(self):
         if not self._project:
@@ -77,7 +78,7 @@ class PrimaryEquipmentTab(QWidget):
             except Exception:
                 pass
         self._reload()
-        self.project_changed.emit()
+        self._emit_project_changed()
 
     def _on_item_changed(self, _item):
         if not self._project:
@@ -93,6 +94,10 @@ class PrimaryEquipmentTab(QWidget):
                 "notes": self._get(r,4),
             })
         self._project.primary_equipment = out
+        self._emit_project_changed()
+
+    def _emit_project_changed(self) -> None:
+        log_event("emit_project_changed", "primary_equipment_tab")
         self.project_changed.emit()
 
     def _get(self, r, c) -> str:

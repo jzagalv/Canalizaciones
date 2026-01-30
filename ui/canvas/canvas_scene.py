@@ -23,6 +23,7 @@ from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem, QGraphicsPathIt
 from PyQt5.QtPrintSupport import QPrinter
 
 from ui.canvas.canvas_items import NodeItem, EdgeItem, NodeData
+from ui.utils.event_logger import log_event
 
 
 class CanvasSceneSignals(QObject):
@@ -206,10 +207,14 @@ class CanvasScene(QGraphicsScene):
             self._edges_by_id[edge.edge_id] = edge
 
         self._refresh_edges()
-        self.signals.project_changed.emit(self._project_canvas)
+        self._emit_project_changed()
 
     def get_project_canvas(self) -> Dict:
         return self._project_canvas
+
+    def _emit_project_changed(self) -> None:
+        log_event("emit_project_changed", "canvas_scene")
+        self.signals.project_changed.emit(self._project_canvas)
 
     def get_node_data(self, node_id: str) -> Optional[Dict[str, object]]:
         node = self._nodes_by_id.get(str(node_id))
@@ -239,7 +244,7 @@ class CanvasScene(QGraphicsScene):
                     n["props"] = props
                 break
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     # -------------------- Background image --------------------
     def _apply_background_pixmap(self, pix: QPixmap, emit: bool = True) -> None:
@@ -254,7 +259,7 @@ class CanvasScene(QGraphicsScene):
         self.setSceneRect(QRectF(pix.rect()))
 
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def set_background_image(self, image_path: str, emit: bool = True) -> None:
         try:
@@ -285,7 +290,7 @@ class CanvasScene(QGraphicsScene):
             self._background_item.setScale(float(self._project_canvas["background"]["scale"]))
 
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def clear_background(self, emit: bool = True) -> None:
         if self._background_item is not None:
@@ -301,7 +306,7 @@ class CanvasScene(QGraphicsScene):
             "image_format": "",
         }
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def background_bounding_rect(self) -> Optional[QRectF]:
         """Return background bounding rect if present, else None."""
@@ -319,7 +324,7 @@ class CanvasScene(QGraphicsScene):
         self._project_canvas.setdefault("background", {})
         self._project_canvas["background"]["opacity"] = op
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def set_background_locked(self, locked: bool, emit: bool = True) -> None:
         locked = bool(locked)
@@ -334,7 +339,7 @@ class CanvasScene(QGraphicsScene):
         self._project_canvas.setdefault("background", {})
         self._project_canvas["background"]["locked"] = locked
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     # -------------------- Public commands --------------------
     def set_connect_mode(self, enabled: bool) -> None:
@@ -352,7 +357,7 @@ class CanvasScene(QGraphicsScene):
         self._project_canvas.setdefault("nodes", []).append(
             {"id": node_id, "type": str(node_type), "name": str(name), "x": float(x), "y": float(y), "library_item_id": library_item_id}
         )
-        self.signals.project_changed.emit(self._project_canvas)
+        self._emit_project_changed()
         return node_id
 
     def add_edge(self, from_node_id: str, to_node_id: str, kind: str = "duct") -> Optional[str]:
@@ -380,7 +385,7 @@ class CanvasScene(QGraphicsScene):
             }
         )
         self._refresh_edges()
-        self.signals.project_changed.emit(self._project_canvas)
+        self._emit_project_changed()
         return edge_id
 
     def set_edge_kind(self, edge_id: str, kind: str, emit: bool = True) -> None:
@@ -393,7 +398,7 @@ class CanvasScene(QGraphicsScene):
                 e["kind"] = str(kind)
                 break
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def set_edge_props(self, edge_id: str, props: dict, emit: bool = True) -> None:
         edge = self._edges_by_id.get(edge_id)
@@ -407,7 +412,7 @@ class CanvasScene(QGraphicsScene):
                 break
         self._refresh_troncal_highlights()
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def set_edge_mode(self, edge_id: str, mode: str, emit: bool = True) -> None:
         edge = self._edges_by_id.get(edge_id)
@@ -419,7 +424,7 @@ class CanvasScene(QGraphicsScene):
                 e["mode"] = str(mode)
                 break
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def set_edge_runs(self, edge_id: str, runs: list, emit: bool = True) -> None:
         edge = self._edges_by_id.get(edge_id)
@@ -431,7 +436,7 @@ class CanvasScene(QGraphicsScene):
                 e["runs"] = list(runs or [])
                 break
         if emit:
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
 
     def set_edge_status(self, edge_id: str, status: str, badge_text: str = "") -> None:
         edge = self._edges_by_id.get(edge_id)
@@ -452,7 +457,7 @@ class CanvasScene(QGraphicsScene):
                 self._remove_edge(item.edge_id)
 
         self._refresh_edges()
-        self.signals.project_changed.emit(self._project_canvas)
+        self._emit_project_changed()
 
     # -------------------- DnD support --------------------
     def handle_drop(self, scene_pos, payload: Dict) -> bool:
@@ -525,7 +530,7 @@ class CanvasScene(QGraphicsScene):
         super().mouseReleaseEvent(event)
         if self._auto_snap_selected_edges():
             self._refresh_edges()
-            self.signals.project_changed.emit(self._project_canvas)
+            self._emit_project_changed()
         if self._background_item is None:
             return
         if self._project_canvas.get("background", {}).get("locked", True):
@@ -534,7 +539,7 @@ class CanvasScene(QGraphicsScene):
         self._project_canvas.setdefault("background", {})
         self._project_canvas["background"]["pos"] = [float(pos.x()), float(pos.y())]
         self._project_canvas["background"]["scale"] = float(self._background_item.scale() or 1.0)
-        self.signals.project_changed.emit(self._project_canvas)
+        self._emit_project_changed()
 
     # -------------------- Internals --------------------
     def _next_node_id(self) -> str:
@@ -563,7 +568,7 @@ class CanvasScene(QGraphicsScene):
                 n["y"] = float(y)
                 break
         self._refresh_edges()
-        self.signals.project_changed.emit(self._project_canvas)
+        self._emit_project_changed()
 
     def _remove_node(self, node_id: str, release_library_item: bool = False) -> None:
         node = self._nodes_by_id.pop(node_id, None)
@@ -789,3 +794,4 @@ class CanvasScene(QGraphicsScene):
                 e._apply_style()  # noqa: SLF001 - internal helper for immediate UI feedback
             except Exception:
                 pass
+

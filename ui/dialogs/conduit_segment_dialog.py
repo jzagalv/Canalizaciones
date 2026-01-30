@@ -51,6 +51,7 @@ from domain.services.cable_layout import (
     layout_cables_in_rect,
 )
 from ui.dialogs.base_dialog import BaseDialog
+from ui.styles.style_utils import repolish
 
 
 class SectionGraphicsView(QGraphicsView):
@@ -311,7 +312,8 @@ class ConduitSegmentDialog(BaseDialog):
         if self._segment is None:
             self._set_form_enabled(False)
             self.lbl_status.setText("(sin selección)")
-            self.lbl_status.setStyleSheet("")
+            self.lbl_status.setProperty("status", "")
+            repolish(self.lbl_status)
             self.edt_tag.setText("")
             self.cmb_type.setCurrentIndex(0)
             self.spin_qty.setValue(1)
@@ -375,7 +377,9 @@ class ConduitSegmentDialog(BaseDialog):
         self._refresh_canalizacion_table()
         if not self._is_segment_alive(self._segment):
             return
-        calc = getattr(self._project, "_calc", None) if self._project is not None else None
+        calc = getattr(self._project, "calc_state", None) if self._project is not None else None
+        if not isinstance(calc, dict):
+            calc = getattr(self._project, "_calc", None) if self._project is not None else None
         edge_to_circuits = calc.get("edge_to_circuits") if isinstance(calc, dict) else None
         if not isinstance(edge_to_circuits, dict):
             self._set_circuits_placeholder("Ejecuta Recalcular para ver los circuitos que pasan por este tramo")
@@ -735,7 +739,9 @@ class ConduitSegmentDialog(BaseDialog):
             ("Sección total utilizada (mm²)", ""),
             ("Ocupación (%)", ""),
         ]
-        calc = getattr(self._project, "_calc", None) if self._project is not None else None
+        calc = getattr(self._project, "calc_state", None) if self._project is not None else None
+        if not isinstance(calc, dict):
+            calc = getattr(self._project, "_calc", None) if self._project is not None else None
         edge_to_circuits = calc.get("edge_to_circuits") if isinstance(calc, dict) else None
         if not self._is_segment_alive(self._segment) or not isinstance(edge_to_circuits, dict):
             self._set_summary_rows(rows)
@@ -1655,7 +1661,11 @@ class ConduitSegmentDialog(BaseDialog):
         return list(props.get("cables") or [])
 
     def _calc_context(self) -> Optional[Dict[str, object]]:
-        calc = getattr(self._project, "_calc", None) if self._project is not None else None
+        if self._project is None:
+            return None
+        calc = getattr(self._project, "calc_state", None)
+        if not isinstance(calc, dict):
+            calc = getattr(self._project, "_calc", None)
         return calc if isinstance(calc, dict) else None
 
     def _edge_cables_from_calc(self) -> List[Dict[str, object]]:
@@ -1790,12 +1800,13 @@ class ConduitSegmentDialog(BaseDialog):
             text = f"Ocupacion: {fmt_percent(fill_percent_disp)}"
         self.lbl_status.setText(text)
         fill_state = util_color(fill_percent, max_fill)
-        color = {
-            "ok": "#16a34a",
-            "warn": "#f59e0b",
-            "over": "#dc2626",
+        status = {
+            "ok": "ok",
+            "warn": "warn",
+            "over": "bad",
         }.get(str(fill_state), "")
-        self.lbl_status.setStyleSheet(f"color: {color};" if color else "")
+        self.lbl_status.setProperty("status", status)
+        repolish(self.lbl_status)
 
     def _duct_material(self, size: str, duct_id: Optional[str] = None) -> Dict[str, object]:
         if self._material_service:

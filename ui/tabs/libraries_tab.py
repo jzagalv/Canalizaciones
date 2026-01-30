@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
 
 from data.repositories.lib_loader import load_lib
 from domain.entities.models import Project
+from ui.utils.event_logger import log_event
 
 
 class LibrariesTab(QWidget):
@@ -73,4 +74,8 @@ class LibrariesTab(QWidget):
                 pass
         elif col == 2:
             lr.path = item.text().strip()
+        self._emit_project_changed()
+
+    def _emit_project_changed(self) -> None:
+        log_event("emit_project_changed", "libraries_tab")
         self.project_changed.emit()

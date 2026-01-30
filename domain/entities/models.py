@@ -40,6 +40,7 @@ class Project:
     primary_equipment: List[Dict] = field(default_factory=list)
     troncales: List[Dict] = field(default_factory=list)
     active_fill_rules_preset_id: str = ""
+    calc_state: Dict = field(default_factory=dict)
 
 
 

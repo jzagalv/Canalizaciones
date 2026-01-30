@@ -107,7 +107,9 @@ class InspectorPanel(QScrollArea):
         form.addRow("Tipo:", QLabel(node_type))
 
     def _fill_edge(self, project: object, selection: Dict[str, object]) -> None:
-        calc = getattr(project, "_calc", None)
+        calc = getattr(project, "calc_state", None)
+        if not isinstance(calc, dict):
+            calc = getattr(project, "_calc", None)
         edge_id = str(selection.get("id") or "")
         props = selection.get("props") if isinstance(selection.get("props"), dict) else {}
         tag = str(props.get("tag") or "")

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -58,7 +59,11 @@ from ui.dialogs.fill_rules_presets_dialog import FillRulesPresetsDialog
 from ui.dialogs.equipment_bulk_edit_dialog import EquipmentBulkEditDialog
 from ui.dialogs.cabinet_detail_dialog import CabinetDetailDialog
 from ui.theme_manager import apply_theme
+from ui.styles.style_utils import repolish_tree
 from ui.shell.dashboard_shell import DashboardShell
+from ui.controllers.recalc_scheduler import RecalcScheduler
+from ui.controllers.calc_hash import calc_inputs_hash
+from ui.utils.event_logger import log_event
 
 
 class MainWindow(QMainWindow):
@@ -94,6 +99,9 @@ class MainWindow(QMainWindow):
         self._libs_pending_normalize: Dict[str, Dict] = {}
         self._equipment_items_by_id: Dict[str, Dict] = {}
         self._equipment_item_sources: Dict[str, str] = {}
+        # Guard to avoid auto-recalc feedback loop from derived UI/model updates.
+        self._suppress_project_mutations = False
+        self._is_recalculating = False
 
         if self._app_config.materiales_bd_path and Path(self._app_config.materiales_bd_path).exists():
             self.project.active_materiales_bd_path = self._app_config.materiales_bd_path
@@ -104,6 +112,14 @@ class MainWindow(QMainWindow):
         self._apply_window_state_from_config()
         self._build_menu()
         self._build_ui()
+        self._recalc = RecalcScheduler(self._recalculate, parent=self)
+        self._recalc.calc_state_changed.connect(lambda dirty: self._update_calc_status_label())
+        self._recalc.calc_finished.connect(lambda ok: self._update_calc_status_label())
+        try:
+            self.shell.header.btn_recalc.clicked.disconnect()
+        except Exception:
+            pass
+        self.shell.header.btn_recalc.clicked.connect(lambda: self._force_recalculate("manual_button"))
         self._refresh_all()
 
     # -------------------- Menu --------------------
@@ -128,7 +144,7 @@ class MainWindow(QMainWindow):
 
         m_calc = self.menuBar().addMenu("Calculo")
         act_recalc = QAction("Recalcular", self)
-        act_recalc.triggered.connect(self._recalculate)
+        act_recalc.triggered.connect(lambda: self._force_recalculate("menu_recalc"))
         m_calc.addAction(act_recalc)
 
         m_libs = self.menuBar().addMenu("Librerías")
@@ -268,6 +284,14 @@ class MainWindow(QMainWindow):
             self.shell.set_action_widget(self.tab_canvas.toolbar_widget)
         else:
             self.shell.set_action_widget(None)
+            try:
+                self.tab_canvas.scene.set_connect_mode(False)
+                self.tab_canvas.btn_connect.setChecked(False)
+                self.tab_canvas.btn_connect.setProperty("active", False)
+                from ui.styles.style_utils import repolish
+                repolish(self.tab_canvas.btn_connect)
+            except Exception:
+                pass
 
     def _update_inspector_from_selection(self, payload: Dict) -> None:
         try:
@@ -286,9 +310,18 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app is not None:
             apply_theme(app, self._app_dir, theme)
+        repolish_tree(self)
+        if hasattr(self, "shell"):
+            repolish_tree(self.shell)
         self._app_config.theme = theme
         self._app_config.save()
         self._current_theme = theme
+
+    def _force_recalculate(self, reason: str = "manual") -> None:
+        if hasattr(self, "_recalc") and self._recalc:
+            self._recalc.force(reason)
+            return
+        self._recalculate()
 
     # -------------------- Project I/O --------------------
     def _new_project(self) -> None:
@@ -361,6 +394,9 @@ class MainWindow(QMainWindow):
             self._offer_normalize_libs()
         self.tab_circuits.set_effective_catalog(self._eff)
         self._refresh_status()
+        if hasattr(self, "_recalc") and self._recalc:
+            log_event("schedule_recalc", "libs_validated")
+            self._recalc.schedule("libs_validated")
 
     def _build_effective_catalog(self) -> EffectiveCatalog:
         libs = sorted([lr for lr in self.project.libraries if lr.enabled], key=lambda x: x.priority)
@@ -381,6 +417,17 @@ class MainWindow(QMainWindow):
 
     # -------------------- Calculation --------------------
     def _recalculate(self) -> None:
+        if self._is_recalculating:
+            return
+        self._is_recalculating = True
+        self._suppress_project_mutations = True
+        reasons_snapshot = []
+        if hasattr(self, "_recalc") and self._recalc:
+            try:
+                reasons_snapshot = self._recalc.peek_reasons()
+            except Exception:
+                reasons_snapshot = []
+        log_event("recalculate_start", f"reasons={reasons_snapshot}")
         if not self._eff:
             try:
                 self._eff = self._build_effective_catalog()
@@ -388,29 +435,43 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"No se pudo cargar/combinar bibliotecas: {e}")
                 return
 
-        self.tab_circuits.set_effective_catalog(self._eff)
+        try:
+            self.tab_circuits.set_effective_catalog(self._eff)
 
-        routes, edge_to_circuits, canalizacion_assignments, fill_results = compute_project_solutions(
-            self.project,
-            self._eff,
-            self._app_dir,
-        )
-        self.project._calc = {
-            "routes": routes,
-            "edge_to_circuits": edge_to_circuits,
-            "canalizacion_assignments": canalizacion_assignments,
-            "fill_results": fill_results,
-        }
-        self._calc_dirty = False
-        self._sync_edge_fill_props(fill_results)
-        if self._segment_dialog is not None:
-            try:
-                self._segment_dialog.set_project(self.project)
-            except Exception:
-                pass
-        self.tab_results.set_results(self.project, fill_results, [])
-        self.tab_canvas.set_edge_statuses(fill_results)
-        self._refresh_status(extra_warnings=[])
+            routes, edge_to_circuits, canalizacion_assignments, fill_results = compute_project_solutions(
+                self.project,
+                self._eff,
+                self._app_dir,
+            )
+            reasons = self._recalc.take_reasons() if hasattr(self, "_recalc") and self._recalc else []
+            inputs_hash = calc_inputs_hash(self.project)
+            last_calc_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            warnings = list(self._eff.warnings or []) if self._eff else []
+            self.project.calc_state = {
+                "routes": routes,
+                "edge_to_circuits": edge_to_circuits,
+                "canalizacion_assignments": canalizacion_assignments,
+                "fill_results": fill_results,
+                "warnings": warnings,
+                "reasons": reasons,
+                "inputs_hash": inputs_hash,
+                "last_calc_utc": last_calc_utc,
+            }
+            self.project._calc = dict(self.project.calc_state)
+            self._calc_dirty = False
+            self._sync_edge_fill_props(fill_results)
+            if self._segment_dialog is not None:
+                try:
+                    self._segment_dialog.set_project(self.project)
+                except Exception:
+                    pass
+            self.tab_results.set_results(self.project, fill_results, warnings)
+            self.tab_canvas.set_edge_statuses(fill_results)
+            self._refresh_status(extra_warnings=[])
+        finally:
+            log_event("recalculate_end", "ok")
+            self._suppress_project_mutations = False
+            self._is_recalculating = False
 
     def _sync_edge_fill_props(self, fill_results: Dict[str, Dict]) -> None:
         if not fill_results:
@@ -427,16 +488,26 @@ class MainWindow(QMainWindow):
 
     # -------------------- Refresh --------------------
     def _on_project_mutated(self) -> None:
+        log_event(
+            "project_changed",
+            f"suppress={self._suppress_project_mutations} is_recalc={self._is_recalculating}",
+        )
+        if self._suppress_project_mutations:
+            return
         # mark dirty (lightweight)
         self._project_dirty = True
         self._eff = None  # libraries/canvas/circuits may have changed
         self._calc_dirty = True
+        if hasattr(self, "_recalc") and self._recalc:
+            log_event("schedule_recalc", "project_mutated")
+            self._recalc.schedule("project_mutated")
         if self._segment_dialog is not None:
             try:
                 self._segment_dialog.set_project(self.project)
             except Exception:
                 pass
         self._refresh_title()
+        self._update_calc_status_label()
 
     def _refresh_all(self) -> None:
         self._refresh_title()
@@ -458,6 +529,7 @@ class MainWindow(QMainWindow):
             self.tab_canvas.set_project(self.project)
             self.tab_circuits.set_project(self.project)
         self._sync_libraries_templates_dialog()
+        self._restore_calc_state()
         self._refresh_status()
 
     def _on_segment_removed(self, edge_id: str) -> None:
@@ -483,6 +555,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_status(self, extra_warnings: Optional[List[str]] = None) -> None:
         lines: List[str] = []
+        lines.append(self._calc_status_text())
         lines.append(f"Perfil: {self.project.active_profile}")
 
         libs_enabled = len([lr for lr in self.project.libraries if lr.enabled])
@@ -507,6 +580,43 @@ class MainWindow(QMainWindow):
 
         self.lbl_status.setText("\n".join(lines))
 
+    def _calc_status_text(self) -> str:
+        calc = getattr(self.project, "calc_state", {}) or {}
+        last_calc = str(calc.get("last_calc_utc") or "")
+        if self._calc_dirty:
+            return "Resultados desactualizados ⚠ (auto-recalc pendiente)"
+        if last_calc:
+            try:
+                ts = last_calc.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(ts)
+                return f"Calculado ✓ {dt.strftime('%H:%M')}"
+            except Exception:
+                return f"Calculado ✓ {last_calc}"
+        return "Calculado ✓"
+
+    def _update_calc_status_label(self) -> None:
+        try:
+            self._refresh_status()
+        except Exception:
+            pass
+
+    def _restore_calc_state(self) -> None:
+        calc = getattr(self.project, "calc_state", {}) or {}
+        self.project._calc = dict(calc)
+        fill_results = calc.get("fill_results") or {}
+        warnings = calc.get("warnings") or []
+        if fill_results:
+            self.tab_results.set_results(self.project, fill_results, warnings)
+            self.tab_canvas.set_edge_statuses(fill_results)
+            self._sync_edge_fill_props(fill_results)
+        current_hash = calc_inputs_hash(self.project)
+        stored_hash = str(calc.get("inputs_hash") or "")
+        if stored_hash and stored_hash == current_hash:
+            self._calc_dirty = False
+        else:
+            self._calc_dirty = True
+        self._update_calc_status_label()
+
     # ---------------- Libraries & Templates dialog ----------------
     def _open_libraries_templates_dialog(self) -> None:
         if self._lib_tpl_dialog is None:
@@ -528,10 +638,9 @@ class MainWindow(QMainWindow):
         dlg = FillRulesPresetsDialog(self._app_dir, self.project, self)
         if dlg.exec_() == QDialog.Accepted:
             self._on_project_mutated()
-            try:
-                self._recalculate()
-            except Exception:
-                pass
+            if hasattr(self, "_recalc") and self._recalc:
+                log_event("schedule_recalc", "fill_rules_changed")
+                self._recalc.schedule("fill_rules_changed")
 
     def _sync_libraries_templates_dialog(self) -> None:
         if not self._lib_tpl_dialog:
@@ -543,6 +652,12 @@ class MainWindow(QMainWindow):
     def _on_materiales_changed(self, doc: Dict) -> None:
         self._materiales_doc = doc
         self._refresh_materiales_label()
+        self._eff = None
+        self._calc_dirty = True
+        if hasattr(self, "_recalc") and self._recalc:
+            log_event("schedule_recalc", "materials_changed")
+            self._recalc.schedule("materials_changed")
+        self._update_calc_status_label()
 
     def _on_installation_type_changed(self, value: str) -> None:
         self.project.active_installation_type = value or ""
@@ -615,6 +730,7 @@ class MainWindow(QMainWindow):
             self._sync_libraries_templates_dialog()
             self.materialsDbChanged.emit(path, self._materiales_doc)
             self._update_material_service()
+            self._on_project_mutated()
         except MaterialesBdError as e:
             QMessageBox.critical(self, "materiales_bd.lib", str(e))
 
@@ -635,6 +751,12 @@ class MainWindow(QMainWindow):
             save_materiales_bd(self._materiales_path, self._materiales_doc)
             self.materialsDbChanged.emit(self._materiales_path, self._materiales_doc)
             self._update_material_service()
+            self._eff = None
+            self._calc_dirty = True
+            if hasattr(self, "_recalc") and self._recalc:
+                log_event("schedule_recalc", "materials_changed")
+                self._recalc.schedule("materials_changed")
+            self._update_calc_status_label()
         except MaterialesBdError as e:
             QMessageBox.critical(self, "materiales_bd.lib", str(e))
 
@@ -665,6 +787,7 @@ class MainWindow(QMainWindow):
             self._sync_libraries_templates_dialog()
             self.materialsDbChanged.emit(self._materiales_path, self._materiales_doc)
             self._update_material_service()
+            self._on_project_mutated()
         except MaterialesBdError as e:
             QMessageBox.critical(self, "materiales_bd.lib", str(e))
 

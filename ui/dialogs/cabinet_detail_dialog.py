@@ -163,7 +163,9 @@ class CabinetDetailDialog(BaseDialog):
         return connected
 
     def _calc_context(self) -> Optional[Dict[str, object]]:
-        calc = getattr(self._project, "_calc", None) if self._project else None
+        calc = getattr(self._project, "calc_state", None) if self._project else None
+        if not isinstance(calc, dict):
+            calc = getattr(self._project, "_calc", None) if self._project else None
         return calc if isinstance(calc, dict) else None
 
     def _equipment_dimensions_mm(self, node: Dict[str, object]) -> Tuple[float, float, float]:

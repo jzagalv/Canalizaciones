@@ -23,7 +23,9 @@ from ui.canvas.canvas_scene import CanvasScene
 from ui.canvas.canvas_items import EdgeItem
 from ui.canvas.canvas_view import CanvasView
 from ui.widgets.library_panel import LibraryPanel
+from ui.styles.style_utils import repolish
 from ui.widgets.card_frame import CardFrame
+from ui.utils.event_logger import log_event
 
 
 class CanvasTab(QWidget):
@@ -68,6 +70,8 @@ class CanvasTab(QWidget):
 
         self.btn_connect = QPushButton("Conectar tramo")
         self.btn_connect.setCheckable(True)
+        self.btn_connect.setProperty("tool", "connect")
+        self.btn_connect.setProperty("active", False)
         self.btn_connect.toggled.connect(self._on_connect_toggled)
         top.addWidget(self.btn_connect)
 
@@ -182,6 +186,17 @@ class CanvasTab(QWidget):
     # ---------------- Actions: nodes/edges ----------------
     def _on_connect_toggled(self, on: bool):
         self.scene.set_connect_mode(on)
+        self._set_tool_active(self.btn_connect, on)
+
+    def _set_tool_active(self, button: QPushButton, active: bool) -> None:
+        # Ensure only one tool is visually active at a time.
+        for btn in [self.btn_connect]:
+            if btn is button:
+                continue
+            btn.setProperty("active", False)
+            repolish(btn)
+        button.setProperty("active", bool(active))
+        repolish(button)
 
     def _sync_library_usage_from_canvas(self) -> None:
         if not self._project:
@@ -222,7 +237,8 @@ class CanvasTab(QWidget):
         payload = self._selection_snapshot or {}
         if not self._project or payload.get("kind") != "edge":
             self.lbl_detail_fill.setText("(sin seleccion)")
-            self.lbl_detail_fill.setStyleSheet("")
+            self.lbl_detail_fill.setProperty("status", "")
+            repolish(self.lbl_detail_fill)
             return
         edge_id = str(payload.get("id") or "")
         props = self._edge_props(edge_id)
@@ -231,7 +247,8 @@ class CanvasTab(QWidget):
         max_fill = fill_info.get("fill_max_percent", props.get("fill_max_percent"))
         if fill_percent is None:
             self.lbl_detail_fill.setText("Ocupacion: (Recalcular)")
-            self.lbl_detail_fill.setStyleSheet("color: #9ca3af;")
+            self.lbl_detail_fill.setProperty("status", "muted")
+            repolish(self.lbl_detail_fill)
             return
         fill_state = fill_info.get("fill_state", props.get("fill_state")) or util_color(fill_percent, max_fill)
         if max_fill and float(max_fill) > 0:
@@ -244,7 +261,13 @@ class CanvasTab(QWidget):
             "over": "#dc2626",
         }.get(str(fill_state), "")
         self.lbl_detail_fill.setText(text)
-        self.lbl_detail_fill.setStyleSheet(f"color: {color};" if color else "")
+        status = {
+            "ok": "ok",
+            "warn": "warn",
+            "over": "bad",
+        }.get(str(fill_state), "")
+        self.lbl_detail_fill.setProperty("status", status)
+        repolish(self.lbl_detail_fill)
 
     def _edge_props(self, edge_id: str) -> Dict[str, object]:
         edges = list((self._project.canvas or {}).get("edges") or []) if self._project else []
@@ -261,6 +284,9 @@ class CanvasTab(QWidget):
             "scale": float(state.get("scale", 1.0) or 1.0),
             "center": list(state.get("center") or [0.0, 0.0]),
         }
+
+    def _emit_project_changed(self) -> None:
+        log_event("emit_project_changed", "canvas_tab")
         self.project_changed.emit()
 
     def _apply_view_state_from_model(self) -> None:

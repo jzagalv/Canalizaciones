@@ -51,6 +51,7 @@ def load_project(path: str) -> Project:
         primary_equipment=data.get('primary_equipment') or [],
         troncales=data.get('troncales') or [],
         active_fill_rules_preset_id=data.get('active_fill_rules_preset_id',''),
+        calc_state=data.get('calc_state') or data.get('_calc') or {},
     )
     return prj
 

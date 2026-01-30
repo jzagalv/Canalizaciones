@@ -1,6 +1,0 @@
-/* Tema sobrio base (se ajustara luego) */
-QMainWindow { background: #f5f6f8; }
-QMenuBar { background: #ffffff; }
-QStatusBar { background: #ffffff; }
-QGroupBox { font-weight: 600; }
-QPushButton { padding: 6px 10px; border-radius: 6px; }

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "presets": [
+    {
+      "id": "CL_RIC",
+      "name": "Chile (RIC)",
+      "rules": {
+        "duct": {
+          "fill_by_conductors": [
+            {
+              "min": 1,
+              "max": 1,
+              "fill_max_pct": 50.0
+            },
+            {
+              "min": 2,
+              "max": 999,
+              "fill_max_pct": 33.0
+            }
+          ]
+        },
+        "bpc": {
+          "fill_max_pct": 40.0,
+          "layers_enabled": false,
+          "max_layers": 1
+        },
+        "epc": {
+          "fill_max_pct": 40.0,
+          "layers_enabled": true,
+          "max_layers": 2
+        }
+      }
+    }
+  ],
+  "active_default_preset_id": "CL_RIC"
+}
